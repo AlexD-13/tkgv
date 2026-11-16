@@ -7,7 +7,7 @@ FastAPI service backing the Thanksgiving dinner dish management platform. Handle
 - Python 3.13
 - FastAPI + Uvicorn
 - python-decouple (config)
-- (planned) SQLAlchemy + MySQL (prod) / SQLite (dev)
+- (planned) SQLAlchemy + SQLite
 
 ## Project layout (current + planned)
 
@@ -28,7 +28,7 @@ backend/
 
 See `.env`. Key ones:
 
-- `DATABASE_URL` — relational DB connection string
+- `DATABASE_URL` — SQLite connection string (e.g. `sqlite:///./database.db`)
 - `SECRET_KEY` — app secret
 - `CORS_ORIGINS` — comma-separated allowed origins
 - `ACCESS_TOKEN_EXPIRE_DAYS`, `AUTH_COOKIE_*` — session cookie settings (if admin auth is enabled)
@@ -45,4 +45,5 @@ Interactive docs: `http://localhost:8000/docs`
 
 ## Concurrency note
 
-Quota decrement on sign-up must be atomic to prevent two guests taking the last seat (RNF-01). Implement with a transactional conditional update or `SELECT ... FOR UPDATE` on the dish row.
+Quota decrement on sign-up must be atomic to prevent two guests taking the last seat (RNF-01). SQLite serializes writes per DB file; use a single write transaction (`BEGIN IMMEDIATE`) and verify
+`(SELECT COUNT(*) FROM registrations WHERE dish_id = ?) < max_quota` before inserting. Set a `busy_timeout` on the connection to handle lock contention.

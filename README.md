@@ -21,7 +21,7 @@ GestionPlatos/
 
 - Frontend: Nuxt 4, Vue 3, Nuxt UI, Tailwind CSS, TypeScript
 - Backend: FastAPI, Python 3.13, Uvicorn
-- Persistence: relational database (MySQL in production, SQLite for local dev)
+- Persistence: SQLite (single file, no server process)
 - Concurrency: atomic quota decrement (row-level locking / conditional update)
 
 ## Functional requirements (summary)
