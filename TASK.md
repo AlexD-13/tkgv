@@ -29,10 +29,10 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 2 — API pública (RF-01 … RF-05)
 
-- [ ] `GET /api/dishes` — lista de platos activos con ocupación (`registered`, `max_quota`, estado: disponible/queda N/lleno). **RF-02**
-- [ ] `POST /api/registrations` — inscripción a plato existente (name, last_name, dish_id, client_id). Decremento atómico de cupo; bloqueo si `registered >= max_quota`. **RF-04, RNF-01**
-- [ ] Detección de "ya inscrito en este dispositivo": devolver inscripciones del `client_id` para que el frontend muestre estado. **RF-03**
-- [ ] `POST /api/proposals` — propuesta de plato nuevo (name, last_name, dish_name, description). Queda en `pending`. **RF-05**
+- [x] `GET /api/dishes` — lista de platos activos con ocupación (`registered`, `max_quota`, estado: disponible/queda N/lleno). **RF-02**
+- [x] `POST /api/registrations` — inscripción a plato existente (name, last_name, dish_id, client_id). Decremento atómico de cupo; bloqueo si `registered >= max_quota`. **RF-04, RNF-01**
+- [x] Detección de "ya inscrito en este dispositivo": devolver inscripciones del `client_id` para que el frontend muestre estado. **RF-03**
+- [x] `POST /api/proposals` — propuesta de plato nuevo (name, last_name, dish_name, description). Queda en `pending`. **RF-05**
 - [ ] Endpoint de bienvenida/mensaje (o estático en frontend). **RF-02**
 
 ## Fase 3 — API admin (RF-06 … RF-09)

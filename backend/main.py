@@ -32,8 +32,11 @@ app.add_middleware(
 )
 
 # Routers se registran aquí a medida que se implementan:
-# from routers import dishes, registrations, proposals, admin
-# app.include_router(dishes.router, prefix="/api", tags=["Dishes"])
+from routers import dishes, registrations, proposals
+
+app.include_router(dishes.router, prefix="/api")
+app.include_router(registrations.router, prefix="/api")
+app.include_router(proposals.router, prefix="/api")
 # ...
 
 @app.get("/status", include_in_schema=False)
