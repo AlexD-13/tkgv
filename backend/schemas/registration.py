@@ -21,3 +21,9 @@ class RegistrationRead(BaseModel):
 
 class RegistrationReassign(BaseModel):
     new_dish_id: int
+
+
+class AttendanceGroup(BaseModel):
+    dish_id: int
+    dish_name: str
+    registrations: list[RegistrationRead]

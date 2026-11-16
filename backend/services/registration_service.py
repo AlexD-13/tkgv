@@ -170,3 +170,26 @@ async def reassign_registration(
         client_id=row["client_id"],
         created_at=row["created_at"],
     )
+
+
+async def list_attendance_grouped(db: AsyncSession):
+    # Returns list of dicts: {dish_id, dish_name, registrations: [RegistrationRead]}
+    dishes_result = await db.execute(
+        text("SELECT id, name FROM dishes ORDER BY id")
+    )
+    dishes = dishes_result.mappings().all()
+    regs = await list_all(db)
+    by_dish: dict[int, list] = {d["id"]: [] for d in dishes}
+    for r in regs:
+        by_dish.setdefault(r.dish_id, []).append(r)
+    out = []
+    for d in dishes:
+        out.append(
+            {
+                "dish_id": d["id"],
+                "dish_name": d["name"],
+                "registrations": by_dish.get(d["id"], []),
+            }
+        )
+    # registrations not tied to a dish (shouldn't happen) grouped under None skipped
+    return out

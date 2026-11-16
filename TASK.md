@@ -37,15 +37,15 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 3 — API admin (RF-06 … RF-09)
 
-- [ ] Proteger rutas `/api/admin/*` con token/credencial. **RF-06**
-- [ ] `POST /api/admin/dishes` — crear plato (name, description, min_quota, max_quota, tested, active). **RF-07**
-- [ ] `PATCH /api/admin/dishes/{id}` — editar/desactivar plato y cupos. **RF-07**
-- [ ] `GET /api/admin/proposals` — listar sugerencias pendientes. **RF-08**
-- [ ] `POST /api/admin/proposals/{id}/approve` — aprobar asignando cupos y estado probado → crea plato publicado. **RF-08**
-- [ ] `POST /api/admin/proposals/{id}/reject` — descartar. **RF-08**
-- [ ] `GET /api/admin/registrations` — listado completo agrupado por plato. **RF-09**
-- [ ] `DELETE /api/admin/registrations/{id}` — eliminar inscripción liberando cupo. **RF-09**
-- [ ] `PATCH /api/admin/registrations/{id}` — reasignar a otro plato liberando/asignando cupo. **RF-09**
+- [x] Proteger rutas `/api/admin/*` con token/credencial. **RF-06**
+- [x] `POST /api/admin/dishes` — crear plato (name, description, min_quota, max_quota, tested, active). **RF-07**
+- [x] `PATCH /api/admin/dishes/{id}` — editar/desactivar plato y cupos. **RF-07**
+- [x] `GET /api/admin/proposals` — listar sugerencias pendientes. **RF-08**
+- [x] `POST /api/admin/proposals/{id}/approve` — aprobar asignando cupos y estado probado → crea plato publicado. **RF-08**
+- [x] `POST /api/admin/proposals/{id}/reject` — descartar. **RF-08**
+- [x] `GET /api/admin/registrations` — listado completo agrupado por plato. **RF-09**
+- [x] `DELETE /api/admin/registrations/{id}` — eliminar inscripción liberando cupo. **RF-09**
+- [x] `PATCH /api/admin/registrations/{id}` — reasignar a otro plato liberando/asignando cupo. **RF-09**
 
 ## Fase 4 — Frontend público (mobile-first)
 
