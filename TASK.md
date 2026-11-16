@@ -60,26 +60,26 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 5 — Frontend admin
 
-- [ ] Ruta `/admin` protegida por token/credencial. **RF-06**
-- [ ] CRUD de platos con cupo mínimo/máximo y flag "probado". **RF-07**
-- [ ] Bandeja de propuestas con aprobar/descartar. **RF-08**
-- [ ] Vista de asistencia agrupada por plato con eliminar/reasignar. **RF-09**
-- [ ] Indicadores internos (min_quota, tested) solo en panel admin. Regla de negocio.
+- [x] Ruta `/admin` protegida por token/credencial. **RF-06**
+- [x] CRUD de platos con cupo mínimo/máximo y flag "probado". **RF-07**
+- [x] Bandeja de propuestas con aprobar/descartar. **RF-08**
+- [x] Vista de asistencia agrupada por plato con eliminar/reasignar. **RF-09**
+- [x] Indicadores internos (min_quota, tested) solo en panel admin. Regla de negocio.
 
 ## Fase 6 — Concurrencia y robustez
 
-- [ ] Implementar registro con transacción `BEGIN IMMEDIATE` + verificación de cupo + `busy_timeout`. **RNF-01**
-- [ ] Manejo de `SQLITE_BUSY` / conflictos (respuesta 409 amigable).
-- [ ] Tests de concurrencia (dos inscripciones simultáneas al último cupo). **RNF-01**
-- [ ] Persistencia verificada tras reinicio del servidor. **RNF-03**
-- [ ] Backup simple (copiar `database.db`).
+- [x] Implementar registro con transacción `BEGIN IMMEDIATE` + verificación de cupo + `busy_timeout`. **RNF-01**
+- [x] Manejo de `SQLITE_BUSY` / conflictos (respuesta 409 amigable).
+- [x] Tests de concurrencia (dos inscripciones simultáneas al último cupo). **RNF-01**
+- [x] Persistencia verificada tras reinicio del servidor. **RNF-03**
+- [x] Backup simple (copiar `database.db`).
 
 ## Fase 7 — Cierre y despliegue
 
-- [ ] Build del frontend y servir estáticos desde FastAPI (`public/`) o hosting estático.
-- [ ] Smoke test en móvil real vía enlace de WhatsApp. **RNF-02**
-- [ ] Documentar flujo de revisión (martes) → lanzamiento (miércoles) → cierre (lunes). **RNF-03**
-- [ ] README final con instrucciones de operación para Alexis y Mariló.
+- [x] Build del frontend y servir estáticos desde FastAPI (`public/`) o hosting estático.
+- [x] Smoke test en móvil real vía enlace de WhatsApp. **RNF-02**
+- [x] Documentar flujo de revisión (martes) → lanzamiento (miércoles) → cierre (lunes). **RNF-03**
+- [x] README final con instrucciones de operación para Alexis y Mariló.
 
 ---
 

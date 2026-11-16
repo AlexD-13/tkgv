@@ -74,6 +74,11 @@ Point the frontend API base at the backend (see `frontend/.env.example`).
 - Backend exposes CORS for `http://localhost:5173` and `http://localhost:3000` by default.
 - Database schema draft: `docs/schema.sql`.
 
-## License
+## Operations (for organizers)
 
-TBD.
+- Admin panel: open `http://<host>/admin` and enter the `ADMIN_TOKEN` from `.env`.
+- Create/edit/deactivate dishes, set min/max quotas, mark tested.
+- Review guest proposals: approve (assigns quotas + tested flag → publishes) or reject.
+- Attendance: view registrations grouped by dish, delete or reassign (frees quota).
+- Backup: copy `backend/database.db` (and `-wal`/`-shm` if present) to a safe location.
+- Event cycle: review Tue → launch Wed → close Mon. Data persists in SQLite across restarts.

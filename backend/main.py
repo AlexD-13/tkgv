@@ -3,8 +3,9 @@ import os
 
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.config import CORS_ORIGINS
@@ -48,9 +49,21 @@ async def detailed_status():
         "environment": "production",
     }
 
-# Servir el frontend compilado (si existe).
-if os.path.isdir("public"):
-    app.mount("/", StaticFiles(directory="public", html=True), name="static")
+# Servir assets del frontend compilado.
+if os.path.isdir("public/_nuxt"):
+    app.mount("/_nuxt", StaticFiles(directory="public/_nuxt"), name="nuxt_assets")
+
+# SPA catch-all: cualquier ruta no-API devuelve index.html (Vue Router toma el control).
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(full_path: str):
+    # Archivos estáticos existentes en public/ (favicon, etc.)
+    file_path = os.path.join("public", full_path)
+    if full_path and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    index_path = os.path.join("public", "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":
