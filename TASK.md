@@ -20,11 +20,11 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 1 — Esquema y acceso a datos (backend)
 
-- [ ] Crear tablas según `docs/schema.sql` (vía migración Alembic con SQL crudo).
-- [ ] Implementar `database/session.py` (engine async + sesiones + PRAGMAs).
-- [ ] Implementar repositorio/servicio con SQL crudo (`text()`): consultas de dishes, registrations, proposals.
-- [ ] Mapear filas (`result.mappings()`) a schemas Pydantic manualmente.
-- [ ] Schemas Pydantic de entrada/salida para cada entidad.
+- [x] Crear tablas según `docs/schema.sql` (vía migración Alembic con SQL crudo).
+- [x] Implementar `database/session.py` (engine async + sesiones + PRAGMAs).
+- [x] Implementar repositorio/servicio con SQL crudo (`text()`): consultas de dishes, registrations, proposals.
+- [x] Mapear filas (`result.mappings()`) a schemas Pydantic manualmente.
+- [x] Schemas Pydantic de entrada/salida para cada entidad.
 - [ ] Seed de platos iniciales (opcional, vía script SQL).
 
 ## Fase 2 — API pública (RF-01 … RF-05)
