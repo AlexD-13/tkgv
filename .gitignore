@@ -1,0 +1,23 @@
+DB/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Node / Nuxt
+node_modules/
+.nuxt/
+.output/
+dist/
+
+# Env & logs
+.env
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
