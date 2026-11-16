@@ -8,7 +8,7 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 0 — Infraestructura y dependencias
 
-- [ ] Instalar dependencias backend: `sqlalchemy[asyncio]`, `aiosqlite`, `alembic`.
+- [x] Instalar dependencias backend: `sqlalchemy[asyncio]`, `aiosqlite`, `alembic`.
 - [ ] Crear estructura de carpetas: `backend/database/`, `backend/models/`, `backend/schemas/`, `backend/routers/`, `backend/services/`, `backend/core/`.
 - [ ] Configurar `core/config.py` con `python-decouple` leyendo `.env` (DATABASE_URL, SECRET_KEY, CORS_ORIGINS, ADMIN_TOKEN).
 - [ ] Crear engine async + session factory en `database/session.py` con:
@@ -18,14 +18,14 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 - [ ] Definir `core/security.py` para el acceso admin (token en cookie/header o enlace privado con token).
 - [ ] Verificar CORS y logging actuales (ya configurados).
 
-## Fase 1 — Modelo de datos (backend)
+## Fase 1 — Esquema y acceso a datos (backend)
 
-- [ ] Modelo `Dish` (id, name, description, min_quota, max_quota, tested, active, created_at, updated_at).
-- [ ] Modelo `Registration` (id, dish_id FK, first_name, last_name, client_id, created_at).
-- [ ] Modelo `Proposal` (id, first_name, last_name, dish_name, description, status, reviewed_at, created_at).
-- [ ] Schemas Pydantic de entrada/salida para cada modelo.
-- [ ] Migración inicial aplicada y DB creada en `backend/database.db`.
-- [ ] Seed de platos iniciales (opcional, vía script).
+- [ ] Crear tablas según `docs/schema.sql` (vía migración Alembic con SQL crudo).
+- [ ] Implementar `database/session.py` (engine async + sesiones + PRAGMAs).
+- [ ] Implementar repositorio/servicio con SQL crudo (`text()`): consultas de dishes, registrations, proposals.
+- [ ] Mapear filas (`result.mappings()`) a schemas Pydantic manualmente.
+- [ ] Schemas Pydantic de entrada/salida para cada entidad.
+- [ ] Seed de platos iniciales (opcional, vía script SQL).
 
 ## Fase 2 — API pública (RF-01 … RF-05)
 
