@@ -58,3 +58,32 @@ export interface Range {
   start: Date
   end: Date
 }
+
+export interface Dish {
+  id: number
+  name: string
+  description: string | null
+  registered: number
+  max_quota: number
+  is_full: boolean
+}
+
+export interface Registration {
+  id: number
+  dish_id: number
+  first_name: string
+  last_name: string
+  client_id: string | null
+  created_at: string
+}
+
+export interface Proposal {
+  id: number
+  first_name: string
+  last_name: string
+  dish_name: string
+  description: string | null
+  status: string
+  reviewed_at: string | null
+  created_at: string
+}

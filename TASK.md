@@ -49,14 +49,14 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 
 ## Fase 4 — Frontend público (mobile-first)
 
-- [ ] Página de bienvenida con mensaje de Thanksgiving. **RF-02**
-- [ ] Lista de platos activos con ocupación en tiempo real (3/5, "queda 1", "disponible"). **RF-02**
-- [ ] Estados por dispositivo: botón "Apuntarme" o "Ya estás inscrito" (con opción de registrar acompañante). **RF-03**
-- [ ] Formulario de inscripción (Nombre, Apellido, selección de plato con cupo libre). **RF-04**
-- [ ] Formulario de propuesta de plato nuevo. **RF-05**
-- [ ] Generación/almacenamiento de `client_id` en `localStorage` para detección de dispositivo. **RF-03**
-- [ ] Refresco de datos (polling o SSE) para ocupación en tiempo real. **RNF-02**
-- [ ] Optimización móvil: layout responsive, tap targets, carga rápida. **RNF-02**
+- [x] Página de bienvenida con mensaje de Thanksgiving. **RF-02**
+- [x] Lista de platos activos con ocupación en tiempo real (3/5, "queda 1", "disponible"). **RF-02**
+- [x] Estados por dispositivo: botón "Apuntarme" o "Ya estás inscrito" (con opción de registrar acompañante). **RF-03**
+- [x] Formulario de inscripción (Nombre, Apellido, selección de plato con cupo libre). **RF-04**
+- [x] Formulario de propuesta de plato nuevo. **RF-05**
+- [x] Generación/almacenamiento de `client_id` en `localStorage` para detección de dispositivo. **RF-03**
+- [x] Refresco de datos (polling o SSE) para ocupación en tiempo real. **RNF-02**
+- [x] Optimización móvil: layout responsive, tap targets, carga rápida. **RNF-02**
 
 ## Fase 5 — Frontend admin
 
