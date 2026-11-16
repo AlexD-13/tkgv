@@ -9,14 +9,14 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 ## Fase 0 — Infraestructura y dependencias
 
 - [x] Instalar dependencias backend: `sqlalchemy[asyncio]`, `aiosqlite`, `alembic`.
-- [ ] Crear estructura de carpetas: `backend/database/`, `backend/models/`, `backend/schemas/`, `backend/routers/`, `backend/services/`, `backend/core/`.
-- [ ] Configurar `core/config.py` con `python-decouple` leyendo `.env` (DATABASE_URL, SECRET_KEY, CORS_ORIGINS, ADMIN_TOKEN).
-- [ ] Crear engine async + session factory en `database/session.py` con:
+- [x] Crear estructura de carpetas: `backend/database/`, `backend/models/`, `backend/schemas/`, `backend/routers/`, `backend/services/`, `backend/core/`.
+- [x] Configurar `core/config.py` con `python-decouple` leyendo `.env` (DATABASE_URL, SECRET_KEY, CORS_ORIGINS, ADMIN_TOKEN).
+- [x] Crear engine async + session factory en `database/session.py` con:
   - `connect_args={"check_same_thread": False, "timeout": 30}`
   - PRAGMA `foreign_keys=ON` y `busy_timeout` vía `event.listen`.
-- [ ] Inicializar Alembic y generar migración inicial desde `docs/schema.sql`.
-- [ ] Definir `core/security.py` para el acceso admin (token en cookie/header o enlace privado con token).
-- [ ] Verificar CORS y logging actuales (ya configurados).
+- [x] Inicializar Alembic y generar migración inicial desde `docs/schema.sql`.
+- [x] Definir `core/security.py` para el acceso admin (token en cookie/header o enlace privado con token).
+- [x] Verificar CORS y logging actuales (ya configurados).
 
 ## Fase 1 — Esquema y acceso a datos (backend)
 
