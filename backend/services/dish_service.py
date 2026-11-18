@@ -24,7 +24,7 @@ async def _fetch_dish_row(db: AsyncSession, dish_id: int):
 
 async def list_public(db: AsyncSession) -> list[DishPublic]:
     result = await db.execute(
-        text("SELECT id, name, description, max_quota FROM dishes WHERE active = 1 ORDER BY id")
+        text("SELECT id, name, description, max_quota FROM dishes WHERE active = TRUE ORDER BY id")
     )
     rows = result.mappings().all()
     out: list[DishPublic] = []
@@ -91,25 +91,24 @@ async def get_admin(db: AsyncSession, dish_id: int) -> DishAdmin | None:
 
 
 async def create_dish(db: AsyncSession, data: DishCreate, commit: bool = True) -> DishAdmin:
-    await db.execute(
+    result = await db.execute(
         text(
             "INSERT INTO dishes (name, description, min_quota, max_quota, tested, active) "
-            "VALUES (:name, :description, :min_quota, :max_quota, :tested, :active)"
+            "VALUES (:name, :description, :min_quota, :max_quota, :tested, :active) "
+            "RETURNING id"
         ),
         {
             "name": data.name,
             "description": data.description,
             "min_quota": data.min_quota,
             "max_quota": data.max_quota,
-            "tested": 1 if data.tested else 0,
-            "active": 1 if data.active else 0,
+            "tested": data.tested,
+            "active": data.active,
         },
     )
     if commit:
         await db.commit()
-    new_id = (
-        await db.execute(text("SELECT last_insert_rowid()"))
-    ).scalar_one()
+    new_id = result.scalar_one()
     return await get_admin(db, int(new_id))
 
 
@@ -125,7 +124,7 @@ async def update_dish(db: AsyncSession, dish_id: int, data: DishUpdate) -> DishA
         if key not in allowed:
             continue
         if key in ("tested", "active"):
-            value = 1 if value else 0
+            value = bool(value)
         sets.append(f"{key} = :{key}")
         params[key] = value
 
@@ -143,7 +142,7 @@ async def update_dish(db: AsyncSession, dish_id: int, data: DishUpdate) -> DishA
 
 async def deactivate_dish(db: AsyncSession, dish_id: int) -> bool:
     result = await db.execute(
-        text("UPDATE dishes SET active = 0 WHERE id = :id"), {"id": dish_id}
+        text("UPDATE dishes SET active = FALSE WHERE id = :id"), {"id": dish_id}
     )
     await db.commit()
     return result.rowcount > 0

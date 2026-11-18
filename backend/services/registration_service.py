@@ -60,20 +60,21 @@ async def create_registration(
     # Validate dish existence/active (read-only; the INSERT below is the atomic guard).
     dish_row = (
         await db.execute(
-            text("SELECT max_quota, active FROM dishes WHERE id = :id"),
+            text("SELECT max_quota, active FROM dishes WHERE id = :id FOR UPDATE"),
             {"id": data.dish_id},
         )
     ).mappings().first()
 
-    # Atomic quota check + insert in a single statement (RNF-01).
+    # Lock the dish row, then verify and insert atomically (RNF-01).
     result = await db.execute(
         text(
             "INSERT INTO registrations (dish_id, first_name, last_name, client_id) "
             "SELECT :dish_id, :first_name, :last_name, :client_id "
             "FROM dishes "
-            "WHERE id = :dish_id AND active = 1 "
+            "WHERE id = :dish_id AND active = TRUE "
             "AND (SELECT COUNT(*) FROM registrations WHERE dish_id = :dish_id) "
-            "    < max_quota"
+            "    < max_quota "
+            "RETURNING id"
         ),
         {
             "dish_id": data.dish_id,
@@ -89,7 +90,7 @@ async def create_registration(
             raise ValueError("dish not found or inactive")
         raise ValueError("dish is full")
 
-    new_id = (await db.execute(text("SELECT last_insert_rowid()"))).scalar_one()
+    new_id = result.scalar_one()
 
     row = (
         await db.execute(

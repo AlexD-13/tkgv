@@ -1,26 +1,23 @@
 import logging
 
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from core.config import DATABASE_URL
+from core.config import DATABASE_URL, DB_SSLMODE
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    connect_args={"timeout": 30},
-)
+engine_kwargs: dict = {
+    'echo': False,
+    'pool_pre_ping': True,
+}
 
-# SQLite per-connection PRAGMAs (foreign keys + busy timeout).
-@event.listens_for(engine.sync_engine, "connect")
-def _set_sqlite_pragmas(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    cursor.execute("PRAGMA busy_timeout = 30000;")
-    cursor.close()
+if DATABASE_URL.startswith('postgresql+asyncpg://'):
+    engine_kwargs['connect_args'] = {
+        'ssl': 'require' if DB_SSLMODE in {'require', 'verify-full', 'verify-ca'} else 'prefer'
+    }
 
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -37,6 +34,6 @@ async def get_session() -> AsyncSession:
 
 async def init_pragmas_check() -> None:
     async with engine.connect() as conn:
-        fk = (await conn.execute(text("PRAGMA foreign_keys;"))).scalar()
-        bt = (await conn.execute(text("PRAGMA busy_timeout;"))).scalar()
-        logger.info("SQLite PRAGMA foreign_keys=%s busy_timeout=%s", fk, bt)
+        if DATABASE_URL.startswith('postgresql'):
+            version = (await conn.execute(text('SELECT version()'))).scalar_one()
+            logger.info('PostgreSQL connection active: %s', version.split(',')[0])

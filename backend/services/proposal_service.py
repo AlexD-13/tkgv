@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +20,11 @@ async def _fetch_proposal(db: AsyncSession, proposal_id: int):
 
 
 async def create_proposal(db: AsyncSession, data: ProposalCreate) -> ProposalRead:
-    await db.execute(
+    result = await db.execute(
         text(
             "INSERT INTO proposals (first_name, last_name, dish_name, description) "
-            "VALUES (:first_name, :last_name, :dish_name, :description)"
+            "VALUES (:first_name, :last_name, :dish_name, :description) "
+            "RETURNING id"
         ),
         {
             "first_name": data.first_name,
@@ -33,7 +34,7 @@ async def create_proposal(db: AsyncSession, data: ProposalCreate) -> ProposalRea
         },
     )
     await db.commit()
-    new_id = (await db.execute(text("SELECT last_insert_rowid()"))).scalar_one()
+    new_id = result.scalar_one()
     row = await _fetch_proposal(db, int(new_id))
     return ProposalRead(
         id=row["id"],
@@ -122,7 +123,7 @@ async def approve_proposal(
                 "UPDATE proposals SET status = 'approved', reviewed_at = :ts "
                 "WHERE id = :id"
             ),
-            {"ts": datetime.utcnow().isoformat(), "id": proposal_id},
+            {"ts": datetime.now(timezone.utc).isoformat(), "id": proposal_id},
         )
         await db.commit()
     except Exception:
@@ -137,7 +138,7 @@ async def reject_proposal(db: AsyncSession, proposal_id: int) -> bool:
             "UPDATE proposals SET status = 'rejected', reviewed_at = :ts "
             "WHERE id = :id AND status = 'pending'"
         ),
-        {"ts": datetime.utcnow().isoformat(), "id": proposal_id},
+        {"ts": datetime.now(timezone.utc).isoformat(), "id": proposal_id},
     )
     await db.commit()
     return result.rowcount > 0

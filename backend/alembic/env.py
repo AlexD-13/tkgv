@@ -1,7 +1,8 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import event
+import asyncio
+
+from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
@@ -9,6 +10,11 @@ from alembic import context
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+from core.config import DATABASE_URL, DB_SSLMODE
+
+if DATABASE_URL:
+    config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -52,34 +58,36 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    asyncio.run(run_async_migrations())
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
 
-    """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+async def run_async_migrations() -> None:
+    engine_options = config.get_section(config.config_ini_section, {})
+    connect_args = {}
+    if DATABASE_URL.startswith('postgresql+asyncpg://'):
+        connect_args['ssl'] = 'require' if DB_SSLMODE in {'require', 'verify-full', 'verify-ca'} else 'prefer'
+
+    connectable = async_engine_from_config(
+        engine_options,
+        prefix='sqlalchemy.',
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
-    @event.listens_for(connectable, "connect")
-    def _set_pragmas(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys = ON;")
-        cursor.execute("PRAGMA busy_timeout = 30000;")
-        cursor.close()
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
 
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            render_as_batch=True,
-        )
+    await connectable.dispose()
 
-        with context.begin_transaction():
-            context.run_migrations()
+
+def do_run_migrations(connection) -> None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
 
 
 if context.is_offline_mode():

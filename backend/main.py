@@ -44,7 +44,7 @@ app.include_router(admin.router, prefix="/api")
 async def detailed_status():
     return {
         "status": "running",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "version": "1.0.0",
         "environment": "production",
     }

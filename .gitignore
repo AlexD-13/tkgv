@@ -21,3 +21,7 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Local runtime
+.runtime/
+backend/database.db

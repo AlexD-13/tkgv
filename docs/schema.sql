@@ -1,53 +1,52 @@
--- GestionPlatos — relational schema (draft)
--- Target: SQLite 3 (file-based, no server). Enable foreign keys per connection:
---   PRAGMA foreign_keys = ON;
+-- GestionPlatos — PostgreSQL relational schema
+-- Target: PostgreSQL 14+. SSL is managed by the application connection.
 
 CREATE TABLE dishes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    min_quota INTEGER NOT NULL DEFAULT 0,   -- desired threshold (internal control)
-    max_quota INTEGER NOT NULL DEFAULT 5,   -- hard limit of registrations
-    tested INTEGER NOT NULL DEFAULT 0,      -- internal: dish tried/validated (0/1)
-    active INTEGER NOT NULL DEFAULT 1,      -- 0/1
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    min_quota INTEGER NOT NULL DEFAULT 0,
+    max_quota INTEGER NOT NULL DEFAULT 5,
+    tested BOOLEAN NOT NULL DEFAULT FALSE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE registrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dish_id INTEGER NOT NULL REFERENCES dishes(id) ON DELETE CASCADE,
+    id BIGSERIAL PRIMARY KEY,
+    dish_id BIGINT NOT NULL REFERENCES dishes(id) ON DELETE CASCADE,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    client_id TEXT,                         -- device/browser identifier for "already registered" detection
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    client_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_reg_dish ON registrations(dish_id);
 
 CREATE TABLE proposals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     dish_name TEXT NOT NULL,
     description TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
-    reviewed_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','approved','rejected')),
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_prop_status ON proposals(status);
 
--- Keep updated_at in sync on row update (SQLite has no ON UPDATE).
-CREATE TRIGGER dishes_updated_at
-AFTER UPDATE ON dishes
-FOR EACH ROW
+CREATE OR REPLACE FUNCTION set_dishes_updated_at()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE dishes SET updated_at = datetime('now') WHERE id = OLD.id;
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
+$$ LANGUAGE plpgsql;
 
--- Concurrency (RNF-01): SQLite serializes writes per database file, but
--- concurrent transactions can still raise SQLITE_BUSY. Use a single write
--- transaction (BEGIN IMMEDIATE) and verify
---   (SELECT COUNT(*) FROM registrations WHERE dish_id = ?) < max_quota
--- before inserting into registrations. Set a busy_timeout on the connection.
+CREATE TRIGGER dishes_updated_at
+BEFORE UPDATE ON dishes
+FOR EACH ROW
+EXECUTE FUNCTION set_dishes_updated_at();
