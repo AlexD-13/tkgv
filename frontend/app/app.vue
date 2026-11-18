@@ -10,7 +10,7 @@ useHead({
     { key: 'theme-color', name: 'theme-color', content: '#FAF5EE' }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' },
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     {
@@ -20,7 +20,7 @@ useHead({
   ]
 })
 
-const title = 'Nuestra Cena de Thanksgiving'
+const title = 'Thanksgiving-Q Málaga'
 const description = 'Un espacio para compartir alrededor de la mesa, celebrar lo vivido este año y dar gracias juntos.'
 
 useSeoMeta({

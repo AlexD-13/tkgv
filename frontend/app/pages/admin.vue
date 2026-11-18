@@ -45,18 +45,18 @@ watch(() => admin.isAuthed.value, (v) => { if (v) loadAll() }, { immediate: true
 // Dish create/edit
 const dishModal = ref(false)
 const editingDish = ref<any>(null)
-const dishForm = reactive({ name: '', description: '', min_quota: 0, max_quota: 5, tested: false, active: true })
+const dishForm = reactive({ name: '', description: '', category: 'Comida', min_quota: 0, max_quota: 5, tested: false, active: true })
 const dishLoading = ref(false)
 
 function openCreateDish() {
   editingDish.value = null
-  Object.assign(dishForm, { name: '', description: '', min_quota: 0, max_quota: 5, tested: false, active: true })
+  Object.assign(dishForm, { name: '', description: '', category: 'Comida', min_quota: 0, max_quota: 5, tested: false, active: true })
   dishModal.value = true
 }
 function openEditDish(d: any) {
   editingDish.value = d
   Object.assign(dishForm, {
-    name: d.name, description: d.description ?? '', min_quota: d.min_quota,
+    name: d.name, description: d.description ?? '', category: d.category ?? 'Comida', min_quota: d.min_quota,
     max_quota: d.max_quota, tested: d.tested, active: d.active
   })
   dishModal.value = true
@@ -160,6 +160,51 @@ const tabs = [
   { label: 'Asistencia', value: 'attendance', icon: 'i-lucide-users' }
 ]
 const activeTab = ref('dishes')
+
+async function copyMessage(message: string) {
+  await navigator.clipboard.writeText(message)
+  toast.add({ title: '¡Copiado!', description: 'Mensaje listo para WhatsApp', color: 'success' })
+}
+
+function copyFreeSeats() {
+  const categories = ['Aperitivo', 'Comida', 'Postre', 'Bebida']
+  const lines = ['🦃 Thanksgiving-Q Málaga · Plazas libres']
+  for (const category of categories) {
+    const items = dishes.value
+      .filter(dish => dish.active && dish.registered < dish.max_quota)
+      .filter(dish => (dish.category?.trim().toLowerCase() || '') === category.toLowerCase())
+      .map(dish => `• ${dish.name}: ${dish.max_quota - dish.registered} plaza(s)`)
+    if (items.length) lines.push(`\n${category}\n${items.join('\n')}`)
+  }
+  copyMessage(lines.join('\n'))
+}
+
+function copyFullSummary() {
+  const categories = ['Aperitivo', 'Comida', 'Postre', 'Bebida']
+  const lines = ['🦃 Thanksgiving-Q Málaga · Resumen completo']
+  for (const category of categories) {
+    const items = dishes.value.filter(dish => (dish.category?.trim().toLowerCase() || '') === category.toLowerCase())
+    if (!items.length) continue
+    lines.push(`\n${category}`)
+    for (const dish of items) {
+      const group = attendance.value.find((item: any) => item.dish_id === dish.id)
+      const people = group?.registrations?.map((item: any) => `${item.first_name} ${item.last_name}`).join(', ') || 'Sin apuntados'
+      const pending = Math.max(0, dish.max_quota - dish.registered)
+      lines.push(`• ${dish.name}: ${dish.registered}/${dish.max_quota} (${pending} pendientes)\n  ${people}`)
+    }
+  }
+  copyMessage(lines.join('\n'))
+}
+
+async function toggleTested(dish: any) {
+  try {
+    await admin.patch(`/admin/dishes/${dish.id}`, { tested: !dish.tested })
+    await loadAll()
+    toast.add({ title: 'Estado probado actualizado', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: error?.data?.detail || error?.message, color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -181,8 +226,12 @@ const activeTab = ref('dishes')
     </UCard>
 
     <div v-else>
-      <div class="mb-4 flex items-center justify-between">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
         <UTabs v-model="activeTab" :items="tabs" />
+        <div class="flex flex-wrap gap-2">
+          <UButton size="sm" variant="outline" @click="copyFreeSeats">Copiar plazas libres</UButton>
+          <UButton size="sm" variant="outline" @click="copyFullSummary">Resumen completo</UButton>
+        </div>
         <UButton size="sm" variant="outline" :loading="loading" @click="loadAll">
           <UIcon name="i-lucide-refresh-cw" class="size-4" />
         </UButton>
@@ -202,10 +251,22 @@ const activeTab = ref('dishes')
           { accessorKey: 'active', header: 'Activo' },
           { accessorKey: 'actions', header: '' }
         ]">
+          <template #name-cell="{ row }">
+            <div>
+              <p class="font-semibold">{{ row.original.name }}</p>
+              <p
+                v-if="row.original.registered < row.original.min_quota"
+                class="mt-1 text-xs font-medium text-[#A66A1F]"
+              >Faltan {{ row.original.min_quota - row.original.registered }} para cubrir el mínimo</p>
+            </div>
+          </template>
           <template #tested-cell="{ row }">
-            <UBadge :color="row.original.tested ? 'success' : 'neutral'" variant="subtle">
-              {{ row.original.tested ? 'Sí' : 'No' }}
-            </UBadge>
+            <UButton
+              size="xs"
+              :variant="row.original.tested ? 'solid' : 'outline'"
+              :color="row.original.tested ? 'success' : 'neutral'"
+              @click="toggleTested(row.original)"
+            >{{ row.original.tested ? 'Probado ✓' : 'Sin probar' }}</UButton>
           </template>
           <template #active-cell="{ row }">
             <UBadge :color="row.original.active ? 'success' : 'error'" variant="subtle">
@@ -298,6 +359,14 @@ const activeTab = ref('dishes')
           </UFormField>
           <UFormField label="Descripción" name="description" class="mt-3">
             <UTextarea v-model="dishForm.description" />
+          </UFormField>
+          <UFormField label="Categoría" name="category" class="mt-3">
+            <USelect v-model="dishForm.category" :items="[
+              { label: 'Comida', value: 'Comida' },
+              { label: 'Bebida', value: 'Bebida' },
+              { label: 'Postre', value: 'Postre' },
+              { label: 'Aperitivo', value: 'Aperitivo' }
+            ]" />
           </UFormField>
           <div class="mt-3 grid grid-cols-2 gap-3">
             <UFormField label="Cupo mínimo" name="min_quota">

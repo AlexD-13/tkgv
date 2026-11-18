@@ -32,13 +32,23 @@ const slider = ref<HTMLElement | null>(null)
 const signupOpen = ref(false)
 const signupDish = ref<Dish | null>(null)
 const signupLoading = ref(false)
-const signupForm = reactive({ first_name: '', last_name: '' })
+const signupForm = reactive({ first_name: '', last_name: '', detail: '' })
 
 const changing = ref<LocalRegistration | null>(null)
 const recoveryOpen = ref(false)
 const recoveryQuery = ref('')
 const recoveryResults = ref<Registration[]>([])
 const recoveryLoading = ref(false)
+
+const categoryMeta: Record<Category, { label: string, emoji: string }> = {
+  Aperitivo: { label: 'Aperitivo', emoji: '🧀' },
+  Comida: { label: 'Comida', emoji: '🍗' },
+  Postre: { label: 'Postre', emoji: '🥧' },
+  Bebida: { label: 'Bebida', emoji: '🥂' }
+}
+
+const carouselHeight = ref<number>(0)
+let carouselObserver: ResizeObserver | undefined
 
 function normalizeCategory(category?: string | null): Category | null {
   const normalized = category?.trim().toLowerCase()
@@ -68,8 +78,8 @@ function syncLocalRegistrations(serverRegistrations: Registration[]) {
   saveLocalRegistrations(active)
 }
 
-async function load() {
-  loading.value = true
+async function load(silent = false) {
+  if (!silent) loading.value = true
   try {
     dishes.value = await api.get<Dish[]>('/dishes')
     if (clientId.value) {
@@ -77,10 +87,20 @@ async function load() {
       syncLocalRegistrations(serverRegistrations)
     }
   } catch (error: any) {
-    toast.add({ title: 'Error', description: error?.message || 'No se pudieron cargar los platos', color: 'error' })
+    if (!silent) toast.add({ title: 'Error', description: error?.message || 'No se pudieron cargar los platos', color: 'error' })
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
+}
+
+let pollTimer: number | undefined
+
+function canSilentRefresh() {
+  return document.visibilityState === 'visible' && !signupOpen.value && !recoveryOpen.value && !changing.value
+}
+
+async function silentRefresh() {
+  if (canSilentRefresh()) await load(true)
 }
 
 onMounted(() => {
@@ -99,16 +119,38 @@ onMounted(() => {
     signupForm.last_name = separator > 0 ? savedName.slice(separator + 1) : ''
   }
 
-  load()
-  const timer = window.setInterval(load, 15000)
-  onBeforeUnmount(() => window.clearInterval(timer))
+  load().finally(() => {
+    window.requestAnimationFrame(updateCarouselHeight)
+  })
+  pollTimer = window.setInterval(silentRefresh, 30000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+
+  carouselObserver = new ResizeObserver(() => updateCarouselHeight())
+  window.requestAnimationFrame(() => {
+    if (slider.value) carouselObserver?.observe(slider.value)
+  })
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') silentRefresh()
+}
+
+onUnmounted(() => {
+  carouselObserver?.disconnect()
+  if (pollTimer !== undefined) window.clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 function dishesForCategory(category: Category) {
-  return dishes.value.filter((dish) => {
-    if (normalizeCategory(dish.category) !== category) return false
-    return !hideFull.value || !dish.is_full
-  })
+  return dishes.value
+    .filter((dish) => {
+      if (normalizeCategory(dish.category) !== category) return false
+      return !hideFull.value || !dish.is_full
+    })
+    .sort((a, b) => {
+      if (a.is_full !== b.is_full) return a.is_full ? 1 : -1
+      return freeSeats(b) - freeSeats(a)
+    })
 }
 
 function categoryFreeSeats(category: Category) {
@@ -121,6 +163,14 @@ function selectCategory(category: Category) {
   selectedCategory.value = category
   const index = categories.indexOf(category)
   slider.value?.children[index]?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+  window.requestAnimationFrame(updateCarouselHeight)
+}
+
+function updateCarouselHeight() {
+  if (!slider.value) return
+  const index = categories.indexOf(selectedCategory.value)
+  const slide = slider.value.children[index] as HTMLElement | undefined
+  carouselHeight.value = slide?.getBoundingClientRect().height || 0
 }
 
 function syncCategoryFromScroll() {
@@ -130,7 +180,10 @@ function syncCategoryFromScroll() {
   if (!width) return
   const index = Math.round(left / width)
   const category = categories[Math.max(0, Math.min(categories.length - 1, index))]
-  if (category) selectedCategory.value = category
+  if (category) {
+    selectedCategory.value = category
+    window.requestAnimationFrame(updateCarouselHeight)
+  }
 }
 
 function openSignup(dish: Dish) {
@@ -183,6 +236,7 @@ async function submitSignup(event: FormSubmitEvent<{ first_name: string, last_na
 
     localStorage.setItem(NAME_KEY, `${event.data.first_name} ${event.data.last_name}`.trim())
     signupOpen.value = false
+    signupForm.detail = ''
     await load()
   } catch (error: any) {
     toast.add({ title: 'Error', description: error?.data?.detail || error?.message || 'No se pudo completar la operación', color: 'error' })
@@ -274,37 +328,27 @@ function statusClasses(dish: Dish) {
   if (free === 1) return 'bg-[#F6E8C7] text-[#A66A1F]'
   return 'bg-[#E8EFE7] text-[#4F6A53]'
 }
+
+function scrollToEventDetails() {
+  document.getElementById('event-details')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+function categoryLabel(category: Category) {
+  return `${categoryMeta[category].emoji} ${categoryMeta[category].label}`
+}
 </script>
 
 <template>
   <div class="min-h-dvh overflow-x-hidden bg-[#FAF5EE] font-sans text-[#2B241B]">
-    <header class="px-4 pt-7 pb-5">
+    <header class="px-4 pt-4 pb-3">
       <div class="mx-auto max-w-2xl text-center">
-        <div class="mb-2 text-3xl" aria-hidden="true">🍂</div>
-        <h1 class="font-serif text-[2.15rem] leading-tight font-bold tracking-tight">
-          Nuestra Cena de Thanksgiving
+        <div class="mb-1 text-2xl" aria-hidden="true">🍂</div>
+        <h1 class="font-serif text-[1.85rem] leading-tight font-bold tracking-tight">
+          🦃 Thanksgiving-Q Málaga
         </h1>
-        <p class="mx-auto mt-3 max-w-md text-base leading-relaxed text-[#5C4A3A]">
+        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#5C4A3A]">
           Un espacio para compartir alrededor de la mesa, celebrar lo vivido este año y dar gracias juntos.
         </p>
-
-        <div class="mt-5 rounded-2xl border border-[#E6D7C3] bg-[#FFFDF9] p-4 text-left shadow-sm">
-          <div class="flex gap-3">
-            <UIcon name="i-lucide-calendar-days" class="mt-0.5 size-5 shrink-0 text-[#C2592A]" />
-            <div class="text-sm leading-relaxed text-[#5C4A3A]">
-              <p><strong class="text-[#2B241B]">Miércoles 25 · A partir de las 20:00h</strong></p>
-              <p class="mt-1">
-                <strong>Ágape</strong> — Calle Demóstenes, 21
-                <a
-                  href="https://maps.google.com/?q=Calle+Demostenes+21+Malaga"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="ml-1 font-semibold text-[#C2592A] underline decoration-[#C2592A]/40 underline-offset-2"
-                >Ver mapa</a>
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div class="mt-4 rounded-2xl border border-[#E6D7C3] bg-[#FFFDF9] p-4 text-left shadow-sm">
           <div class="flex gap-3">
@@ -322,6 +366,12 @@ function statusClasses(dish: Dish) {
         >
           Proponer un plato nuevo
         </button>
+
+        <button
+          type="button"
+          class="mt-2 min-h-8 text-xs font-semibold text-[#C2592A] underline decoration-[#C2592A]/30 underline-offset-4"
+          @click="scrollToEventDetails"
+        >Ver lugar y hora ↓</button>
       </div>
     </header>
 
@@ -339,7 +389,7 @@ function statusClasses(dish: Dish) {
 
       <section v-if="myRegistrations.length" class="mb-5 rounded-2xl border border-[#E6D7C3] bg-[#FFFDF9] p-4 shadow-sm">
         <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="font-serif text-xl font-bold">Tus platos para la cena</h2>
+          <h2 class="font-serif text-xl font-bold">🍽️ Tus platos para la cena</h2>
           <UIcon name="i-lucide-utensils" class="size-5 text-[#C2592A]" />
         </div>
         <div class="space-y-2">
@@ -370,14 +420,6 @@ function statusClasses(dish: Dish) {
         </div>
       </section>
 
-      <button
-        type="button"
-        class="mb-5 block w-full rounded-xl border border-[#E6D7C3] bg-transparent px-4 py-3 text-sm font-medium text-[#5C4A3A]"
-        @click="recoveryOpen = true"
-      >
-        ¿Ya te apuntaste desde otro móvil? <strong class="text-[#C2592A]">Busca tu nombre</strong>
-      </button>
-
       <div v-if="loading" class="flex justify-center py-12">
         <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-[#C2592A]" />
       </div>
@@ -395,15 +437,15 @@ function statusClasses(dish: Dish) {
                 : 'border border-[#E6D7C3] bg-[#FFFDF9] text-[#5C4A3A]'"
               @click="selectCategory(category)"
             >
-              {{ category }} · {{ categoryFreeSeats(category) }} libres
+              {{ categoryLabel(category) }} · {{ categoryFreeSeats(category) }} libres
             </button>
           </div>
         </nav>
 
         <div
           ref="slider"
-          class="flex w-full snap-x snap-mandatory overflow-x-auto scroll-smooth"
-          style="scrollbar-width: none"
+          class="flex w-full items-start snap-x snap-mandatory overflow-x-auto scroll-smooth transition-[height] duration-300"
+          :style="{ height: carouselHeight ? `${carouselHeight}px` : 'auto', scrollbarWidth: 'none' }"
           @scroll.passive="syncCategoryFromScroll"
         >
           <section
@@ -412,7 +454,7 @@ function statusClasses(dish: Dish) {
             class="w-full shrink-0 snap-start px-0.5 pt-5"
           >
             <div class="mb-4 flex items-center justify-between gap-3">
-              <h2 class="font-serif text-2xl font-bold">{{ category }}</h2>
+              <h2 class="font-serif text-2xl font-bold">{{ categoryLabel(category) }}</h2>
               <label class="flex min-h-11 items-center gap-2 text-sm text-[#5C4A3A]">
                 <input
                   v-model="hideFull"
@@ -477,6 +519,25 @@ function statusClasses(dish: Dish) {
       </div>
     </main>
 
+    <footer id="event-details" class="mx-auto max-w-2xl px-4 pb-10 pt-2">
+      <section class="rounded-2xl border border-[#E6D7C3] bg-[#FFFDF9] p-4 shadow-sm">
+        <div class="flex gap-3">
+          <UIcon name="i-lucide-calendar-days" class="mt-0.5 size-5 shrink-0 text-[#C2592A]" />
+          <div class="text-sm leading-relaxed text-[#5C4A3A]">
+            <p class="font-serif text-lg font-bold text-[#2B241B]">📅 Detalles del evento</p>
+            <p class="mt-2"><strong>Miércoles 25 · A partir de las 20:00h</strong></p>
+            <p class="mt-1">📍 <strong>Ágape</strong> — Calle Demóstenes, 21</p>
+          </div>
+        </div>
+      </section>
+
+      <button
+        type="button"
+        class="mt-3 min-h-12 w-full rounded-xl border border-[#E6D7C3] bg-[#FFFDF9] px-4 py-3 text-sm text-[#5C4A3A]"
+        @click="recoveryOpen = true"
+      >🔍 ¿Ya te apuntaste desde otro móvil? <strong class="text-[#C2592A]">Busca tu nombre</strong></button>
+    </footer>
+
     <UModal
       v-model:open="signupOpen"
       :title="changing ? `Cambiar por ${signupDish?.name}` : 'Apuntarse a un plato'"
@@ -492,6 +553,9 @@ function statusClasses(dish: Dish) {
           </UFormField>
           <UFormField label="Apellido" name="last_name" required class="mt-3">
             <UInput v-model="signupForm.last_name" autocomplete="family-name" class="min-h-11 bg-white" />
+          </UFormField>
+          <UFormField label="Detalle opcional" name="detail" class="mt-3">
+            <UInput v-model="signupForm.detail" placeholder="Ej. Allergies, mesa con amigos..." class="min-h-11 bg-white" />
           </UFormField>
           <div class="mt-5 flex justify-end gap-2">
             <UButton variant="ghost" @click="signupOpen = false">Cancelar</UButton>

@@ -2,6 +2,12 @@
 export default defineNuxtConfig({
   ssr: false,
 
+  app: {
+    head: {
+      title: 'Thanksgiving-Q Málaga'
+    }
+  },
+
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
