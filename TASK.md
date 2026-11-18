@@ -25,7 +25,7 @@ Leyenda de estados: `[ ]` pendiente · `[x]` hecho · `[-]` en progreso.
 - [x] Implementar repositorio/servicio con SQL crudo (`text()`): consultas de dishes, registrations, proposals.
 - [x] Mapear filas (`result.mappings()`) a schemas Pydantic manualmente.
 - [x] Schemas Pydantic de entrada/salida para cada entidad.
-- [ ] Seed de platos iniciales (opcional, vía script SQL).
+- [x] Seed de platos iniciales (vía `backend/seeds/seed_dishes.sql` + `backend/scripts/run_seed.py`).
 
 ## Fase 2 — API pública (RF-01 … RF-05)
 

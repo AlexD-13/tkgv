@@ -1,1 +1,0 @@
-import{L as e,Pt as t,R as n,Vt as r,pn as i,q as a}from"./BxOIhw3y.js";import{P as o,c as s}from"#entry";var c=(e,t)=>{let n=e.__vccOpts||e;for(let[e,r]of t)n[e]=r;return n},l={},u={class:`min-h-dvh bg-default`};function d(c,l){let d=o,f=s;return t(),n(f,null,{default:i(()=>[a(d),e(`main`,u,[r(c.$slots,`default`)])]),_:3})}var f=c(l,[[`render`,d]]);export{f as default};
