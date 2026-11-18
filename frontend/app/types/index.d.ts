@@ -63,6 +63,7 @@ export interface Dish {
   id: number
   name: string
   description: string | null
+  category?: string | null
   registered: number
   max_quota: number
   is_full: boolean

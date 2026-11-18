@@ -14,7 +14,7 @@ async def _count_registrations(db: AsyncSession, dish_id: int) -> int:
 async def _fetch_dish_row(db: AsyncSession, dish_id: int):
     result = await db.execute(
         text(
-            "SELECT id, name, description, min_quota, max_quota, tested, active, "
+            "SELECT id, name, description, category, min_quota, max_quota, tested, active, "
             "created_at, updated_at FROM dishes WHERE id = :id"
         ),
         {"id": dish_id},
@@ -24,7 +24,7 @@ async def _fetch_dish_row(db: AsyncSession, dish_id: int):
 
 async def list_public(db: AsyncSession) -> list[DishPublic]:
     result = await db.execute(
-        text("SELECT id, name, description, max_quota FROM dishes WHERE active = TRUE ORDER BY id")
+        text("SELECT id, name, description, category, max_quota FROM dishes WHERE active = TRUE ORDER BY id")
     )
     rows = result.mappings().all()
     out: list[DishPublic] = []
@@ -35,6 +35,7 @@ async def list_public(db: AsyncSession) -> list[DishPublic]:
                 id=r["id"],
                 name=r["name"],
                 description=r["description"],
+                category=r["category"],
                 registered=registered,
                 max_quota=r["max_quota"],
                 is_full=registered >= r["max_quota"],
@@ -46,7 +47,7 @@ async def list_public(db: AsyncSession) -> list[DishPublic]:
 async def list_admin(db: AsyncSession) -> list[DishAdmin]:
     result = await db.execute(
         text(
-            "SELECT id, name, description, min_quota, max_quota, tested, active, "
+            "SELECT id, name, description, category, min_quota, max_quota, tested, active, "
             "created_at, updated_at FROM dishes ORDER BY id"
         )
     )
@@ -59,6 +60,7 @@ async def list_admin(db: AsyncSession) -> list[DishAdmin]:
                 id=r["id"],
                 name=r["name"],
                 description=r["description"],
+                category=r["category"],
                 min_quota=r["min_quota"],
                 max_quota=r["max_quota"],
                 tested=bool(r["tested"]),
@@ -80,6 +82,7 @@ async def get_admin(db: AsyncSession, dish_id: int) -> DishAdmin | None:
         id=r["id"],
         name=r["name"],
         description=r["description"],
+        category=r["category"],
         min_quota=r["min_quota"],
         max_quota=r["max_quota"],
         tested=bool(r["tested"]),
@@ -93,13 +96,14 @@ async def get_admin(db: AsyncSession, dish_id: int) -> DishAdmin | None:
 async def create_dish(db: AsyncSession, data: DishCreate, commit: bool = True) -> DishAdmin:
     result = await db.execute(
         text(
-            "INSERT INTO dishes (name, description, min_quota, max_quota, tested, active) "
-            "VALUES (:name, :description, :min_quota, :max_quota, :tested, :active) "
+            "INSERT INTO dishes (name, description, category, min_quota, max_quota, tested, active) "
+            "VALUES (:name, :description, :category, :min_quota, :max_quota, :tested, :active) "
             "RETURNING id"
         ),
         {
             "name": data.name,
             "description": data.description,
+            "category": data.category,
             "min_quota": data.min_quota,
             "max_quota": data.max_quota,
             "tested": data.tested,
@@ -117,7 +121,7 @@ async def update_dish(db: AsyncSession, dish_id: int, data: DishUpdate) -> DishA
     if not fields:
         return await get_admin(db, dish_id)
 
-    allowed = {"name", "description", "min_quota", "max_quota", "tested", "active"}
+    allowed = {"name", "description", "category", "min_quota", "max_quota", "tested", "active"}
     sets: list[str] = []
     params: dict = {"id": dish_id}
     for key, value in fields.items():

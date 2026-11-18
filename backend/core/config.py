@@ -31,7 +31,7 @@ ADMIN_TOKEN = get('ADMIN_TOKEN', 'admin')
 
 _cors = get(
     'CORS_ORIGINS',
-    'http://localhost:3000,http://127.0.0.1:3000',
+    'http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.5:3000',
 )
 CORS_ORIGINS = [origin.strip() for origin in _cors.split(',') if origin.strip()]
 
