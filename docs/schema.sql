@@ -5,6 +5,7 @@ CREATE TABLE dishes (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    category TEXT CHECK (category IS NULL OR category IN ('Aperitivo','Comida','Postre','Bebida')),
     min_quota INTEGER NOT NULL DEFAULT 0,
     max_quota INTEGER NOT NULL DEFAULT 5,
     tested BOOLEAN NOT NULL DEFAULT FALSE,
