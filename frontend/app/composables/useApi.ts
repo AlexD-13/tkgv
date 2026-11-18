@@ -19,9 +19,9 @@ export const useApi = () => {
 
   return {
     get: <T>(path: string) => $fetch<T>(`${base}${path}`, defaults),
-    post: <T>(path: string, body: unknown) =>
+    post: <T>(path: string, body: Record<string, unknown>) =>
       $fetch<T>(`${base}${path}`, { ...defaults, method: 'POST', body }),
-    put: <T>(path: string, body: unknown) =>
+    put: <T>(path: string, body: Record<string, unknown>) =>
       $fetch<T>(`${base}${path}`, { ...defaults, method: 'PUT', body }),
     del: <T>(path: string) => $fetch<T>(`${base}${path}`, { ...defaults, method: 'DELETE' })
   }

@@ -194,3 +194,72 @@ async def list_attendance_grouped(db: AsyncSession):
         )
     # registrations not tied to a dish (shouldn't happen) grouped under None skipped
     return out
+
+
+async def search_by_name(db: AsyncSession, query: str) -> list[RegistrationRead]:
+    value = query.strip()
+    if not value:
+        return []
+
+    result = await db.execute(
+        text(
+            "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+            "FROM registrations "
+            "WHERE LOWER(first_name) LIKE LOWER(:query) "
+            "OR LOWER(last_name) LIKE LOWER(:query) "
+            "OR LOWER(first_name || ' ' || last_name) LIKE LOWER(:query) "
+            "ORDER BY first_name, last_name, id LIMIT 50"
+        ),
+        {"query": f"%{value}%"},
+    )
+    rows = result.mappings().all()
+    return [
+        RegistrationRead(
+            id=r["id"],
+            dish_id=r["dish_id"],
+            first_name=r["first_name"],
+            last_name=r["last_name"],
+            client_id=r["client_id"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
+
+
+async def delete_owned_registration(
+    db: AsyncSession, registration_id: int, client_id: str
+) -> bool:
+    result = await db.execute(
+        text(
+            "DELETE FROM registrations "
+            "WHERE id = :id AND client_id = :client_id"
+        ),
+        {"id": registration_id, "client_id": client_id},
+    )
+    await db.commit()
+    return result.rowcount > 0
+
+
+async def claim_registration(
+    db: AsyncSession, registration_id: int, client_id: str
+) -> RegistrationRead | None:
+    result = await db.execute(
+        text(
+            "UPDATE registrations SET client_id = :client_id "
+            "WHERE id = :id RETURNING id, dish_id, first_name, last_name, "
+            "client_id, created_at"
+        ),
+        {"id": registration_id, "client_id": client_id},
+    )
+    await db.commit()
+    row = result.mappings().first()
+    if row is None:
+        return None
+    return RegistrationRead(
+        id=row["id"],
+        dish_id=row["dish_id"],
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        client_id=row["client_id"],
+        created_at=row["created_at"],
+    )

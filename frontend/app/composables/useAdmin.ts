@@ -13,15 +13,19 @@ export const useAdmin = () => {
     else localStorage.removeItem('gestionplatos_admin_token')
   }
 
-  const headers = computed(() => (token.value ? { 'X-Admin-Token': token.value } : {}))
+  const headers = computed<Record<string, string>>(() => {
+    const value: Record<string, string> = {}
+    if (token.value) value['X-Admin-Token'] = token.value
+    return value
+  })
 
   async function get<T>(path: string) {
     return await $fetch<T>(`${base}${path}`, { headers: headers.value })
   }
-  async function post<T>(path: string, body?: unknown) {
+  async function post<T>(path: string, body?: Record<string, unknown>) {
     return await $fetch<T>(`${base}${path}`, { method: 'POST', body, headers: headers.value })
   }
-  async function patch<T>(path: string, body?: unknown) {
+  async function patch<T>(path: string, body?: Record<string, unknown>) {
     return await $fetch<T>(`${base}${path}`, { method: 'PATCH', body, headers: headers.value })
   }
   async function del(path: string) {
