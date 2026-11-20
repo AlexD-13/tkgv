@@ -28,6 +28,27 @@ def get(key: str, default: str = '') -> str:
 DATABASE_URL = get('DATABASE_URL', '')
 SECRET_KEY = get('SECRET_KEY', 'change-me-for-local-development')
 ADMIN_TOKEN = get('ADMIN_TOKEN', 'admin')
+ADMIN_TOKEN_LABEL = get('ADMIN_TOKEN_LABEL', 'admin')
+ADMIN_TOKENS_RAW = get('ADMIN_TOKENS', '')
+
+def _parse_admin_tokens(raw: str, legacy_token: str, legacy_label: str) -> dict[str, str]:
+    tokens: dict[str, str] = {}
+    if legacy_token:
+        tokens[legacy_token] = legacy_label
+    for idx, entry in enumerate([e.strip() for e in raw.split(',') if e.strip()], start=1):
+        if ':' in entry or '=' in entry:
+            sep = ':' if ':' in entry else '='
+            label, token = entry.split(sep, 1)
+            label = label.strip() or f'admin-{idx}'
+            token = token.strip()
+        else:
+            label = f'admin-{idx}'
+            token = entry
+        if token:
+            tokens[token] = label
+    return tokens
+
+ADMIN_TOKENS = _parse_admin_tokens(ADMIN_TOKENS_RAW, ADMIN_TOKEN, ADMIN_TOKEN_LABEL)
 
 _cors = get(
     'CORS_ORIGINS',

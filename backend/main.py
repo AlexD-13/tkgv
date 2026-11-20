@@ -5,6 +5,11 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy import text
+from database.session import AsyncSessionLocal
+from core.config import ADMIN_TOKENS
+from core.security import _extract_token
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,8 +27,42 @@ async def lifespan(app: FastAPI):
     yield
 
 
+
+class AdminAuditMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.startswith("/api/admin"):
+            try:
+                token = _extract_token(request)
+                label = ADMIN_TOKENS.get(token) if token else None
+                if label is None:
+                    label = "invalid" if token else "anonymous"
+                ip = request.client.host if request.client else None
+                async with AsyncSessionLocal() as db:
+                    await db.execute(
+                        text(
+                            "INSERT INTO admin_audit_log "
+                            "(token_label, method, path, status_code, ip) "
+                            "VALUES (:label, :method, :path, :status, :ip)"
+                        ),
+                        {
+                            "label": label,
+                            "method": request.method,
+                            "path": path,
+                            "status": response.status_code,
+                            "ip": ip,
+                        },
+                    )
+                    await db.commit()
+            except Exception:
+                pass
+        return response
+
+
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(AdminAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,

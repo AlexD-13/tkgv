@@ -5,6 +5,7 @@ from core.security import require_admin
 from database.session import get_session
 from schemas.dish import DishAdmin, DishCreate, DishUpdate
 from schemas.proposal import ProposalApprove, ProposalRead
+from schemas.audit import AdminAuditRead
 from schemas.registration import (
     AttendanceGroup,
     RegistrationRead,
@@ -22,6 +23,7 @@ from services.proposal_service import (
     list_pending,
     reject_proposal,
 )
+from services.audit_service import list_recent as list_audit_recent
 from services.registration_service import (
     delete_registration,
     list_all as list_registrations_all,
@@ -128,3 +130,10 @@ async def admin_reassign_registration(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="registration not found")
     return result
+
+
+@router.get("/audit", response_model=list[AdminAuditRead])
+async def admin_audit_log(
+    limit: int = 100, db: AsyncSession = Depends(get_session)
+):
+    return await list_audit_recent(db, limit)
