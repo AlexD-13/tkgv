@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -15,8 +17,8 @@ class ProposalRead(BaseModel):
     dish_name: str
     description: str | None = None
     status: str
-    reviewed_at: str | None = None
-    created_at: str
+    reviewed_at: datetime | None = None
+    created_at: datetime
 
 
 class ProposalApprove(BaseModel):

@@ -86,8 +86,9 @@ async function load(silent = false) {
       const serverRegistrations = await api.get<Registration[]>(`/registrations?client_id=${encodeURIComponent(clientId.value)}`)
       syncLocalRegistrations(serverRegistrations)
     }
-  } catch (error: any) {
-    if (!silent) toast.add({ title: 'Error', description: error?.message || 'No se pudieron cargar los platos', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    if (!silent) toast.add({ title: 'Error', description: err?.message || 'No se pudieron cargar los platos', color: 'error' })
   } finally {
     if (!silent) loading.value = false
   }
@@ -202,7 +203,8 @@ async function submitSignup(event: FormSubmitEvent<{ first_name: string, last_na
         first_name: event.data.first_name,
         last_name: event.data.last_name,
         dish_id: signupDish.value.id,
-        client_id: clientId.value
+        client_id: clientId.value,
+        note: signupForm.detail || null
       })
 
       await api.del(`/registrations/${changing.value.id}?client_id=${encodeURIComponent(clientId.value)}`)
@@ -222,7 +224,8 @@ async function submitSignup(event: FormSubmitEvent<{ first_name: string, last_na
         first_name: event.data.first_name,
         last_name: event.data.last_name,
         dish_id: signupDish.value.id,
-        client_id: clientId.value
+        client_id: clientId.value,
+        note: signupForm.detail || null
       })
       saveLocalRegistrations([...readLocalRegistrations(), {
         id: result.id,
@@ -238,8 +241,9 @@ async function submitSignup(event: FormSubmitEvent<{ first_name: string, last_na
     signupOpen.value = false
     signupForm.detail = ''
     await load()
-  } catch (error: any) {
-    toast.add({ title: 'Error', description: error?.data?.detail || error?.message || 'No se pudo completar la operación', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail || err?.message || 'No se pudo completar la operación', color: 'error' })
   } finally {
     signupLoading.value = false
   }
@@ -267,8 +271,9 @@ async function removeRegistration(registration: LocalRegistration) {
     saveLocalRegistrations(readLocalRegistrations().filter(item => item.id !== registration.id))
     toast.add({ title: 'Plaza liberada', description: `Te quitaste de ${registration.dish_name}`, color: 'success' })
     await load()
-  } catch (error: any) {
-    toast.add({ title: 'Error', description: error?.data?.detail || 'No se pudo quitar la inscripción', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { detail?: string } }
+    toast.add({ title: 'Error', description: err?.data?.detail || 'No se pudo quitar la inscripción', color: 'error' })
   }
 }
 
@@ -305,8 +310,9 @@ async function recoverRegistration(registration: Registration) {
     recoveryQuery.value = ''
     toast.add({ title: 'Inscripciones recuperadas', color: 'success' })
     await load()
-  } catch (error: any) {
-    toast.add({ title: 'Error', description: error?.data?.detail || 'No se pudo vincular la inscripción', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { detail?: string } }
+    toast.add({ title: 'Error', description: err?.data?.detail || 'No se pudo vincular la inscripción', color: 'error' })
   }
 }
 
@@ -342,7 +348,9 @@ function categoryLabel(category: Category) {
   <div class="min-h-dvh overflow-x-hidden bg-[#FAF5EE] font-sans text-[#2B241B]">
     <header class="px-4 pt-4 pb-3">
       <div class="mx-auto max-w-2xl text-center">
-        <div class="mb-1 text-2xl" aria-hidden="true">🍂</div>
+        <div class="mb-1 text-2xl" aria-hidden="true">
+          🍂
+        </div>
         <h1 class="font-serif text-[1.85rem] leading-tight font-bold tracking-tight">
           🦃 Thanksgiving-Q Málaga
         </h1>
@@ -371,7 +379,9 @@ function categoryLabel(category: Category) {
           type="button"
           class="mt-2 min-h-8 text-xs font-semibold text-[#C2592A] underline decoration-[#C2592A]/30 underline-offset-4"
           @click="scrollToEventDetails"
-        >Ver lugar y hora ↓</button>
+        >
+          Ver lugar y hora ↓
+        </button>
       </div>
     </header>
 
@@ -379,17 +389,27 @@ function categoryLabel(category: Category) {
       <section v-if="changing" class="mb-4 rounded-2xl border border-[#DDBB76] bg-[#F8EBCF] p-4">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-[#A66A1F]">Cambio de plato</p>
-            <p class="mt-1 text-sm font-semibold text-[#2B241B]">Cambiando {{ changing.dish_name }}</p>
-            <p class="mt-1 text-xs text-[#78716C]">Elige otro plato libre y confirma tu nombre.</p>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#A66A1F]">
+              Cambio de plato
+            </p>
+            <p class="mt-1 text-sm font-semibold text-[#2B241B]">
+              Cambiando {{ changing.dish_name }}
+            </p>
+            <p class="mt-1 text-xs text-[#78716C]">
+              Elige otro plato libre y confirma tu nombre.
+            </p>
           </div>
-          <UButton size="sm" variant="ghost" @click="cancelChange">Cancelar</UButton>
+          <UButton size="sm" variant="ghost" @click="cancelChange">
+            Cancelar
+          </UButton>
         </div>
       </section>
 
       <section v-if="myRegistrations.length" class="mb-5 rounded-2xl border border-[#E6D7C3] bg-[#FFFDF9] p-4 shadow-sm">
         <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="font-serif text-xl font-bold">🍽️ Tus platos para la cena</h2>
+          <h2 class="font-serif text-xl font-bold">
+            🍽️ Tus platos para la cena
+          </h2>
           <UIcon name="i-lucide-utensils" class="size-5 text-[#C2592A]" />
         </div>
         <div class="space-y-2">
@@ -399,8 +419,12 @@ function categoryLabel(category: Category) {
             class="flex items-center justify-between gap-3 rounded-xl border border-[#EEE4D5] bg-[#FAF5EE] px-3 py-3"
           >
             <div class="min-w-0">
-              <p class="truncate text-sm font-semibold">{{ registration.dish_name }}</p>
-              <p class="mt-0.5 text-xs text-[#78716C]">{{ registration.first_name }} {{ registration.last_name }}</p>
+              <p class="truncate text-sm font-semibold">
+                {{ registration.dish_name }}
+              </p>
+              <p class="mt-0.5 text-xs text-[#78716C]">
+                {{ registration.first_name }} {{ registration.last_name }}
+              </p>
             </div>
             <div class="flex shrink-0 gap-1">
               <UButton
@@ -408,13 +432,17 @@ function categoryLabel(category: Category) {
                 variant="ghost"
                 class="text-[#A66A1F]"
                 @click="startChange(registration)"
-              >Cambiar</UButton>
+              >
+                Cambiar
+              </UButton>
               <UButton
                 size="xs"
                 variant="ghost"
                 class="text-[#9A5140]"
                 @click="removeRegistration(registration)"
-              >Quitar</UButton>
+              >
+                Quitar
+              </UButton>
             </div>
           </article>
         </div>
@@ -454,13 +482,15 @@ function categoryLabel(category: Category) {
             class="w-full shrink-0 snap-start px-0.5 pt-5"
           >
             <div class="mb-4 flex items-center justify-between gap-3">
-              <h2 class="font-serif text-2xl font-bold">{{ categoryLabel(category) }}</h2>
+              <h2 class="font-serif text-2xl font-bold">
+                {{ categoryLabel(category) }}
+              </h2>
               <label class="flex min-h-11 items-center gap-2 text-sm text-[#5C4A3A]">
                 <input
                   v-model="hideFull"
                   type="checkbox"
                   class="size-4 accent-[#C2592A]"
-                />
+                >
                 Ocultar completos
               </label>
             </div>
@@ -474,7 +504,9 @@ function categoryLabel(category: Category) {
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <h3 class="text-lg font-bold leading-snug">{{ dish.name }}</h3>
+                    <h3 class="text-lg font-bold leading-snug">
+                      {{ dish.name }}
+                    </h3>
                     <p v-if="dish.description" class="mt-1 text-sm leading-relaxed text-[#78716C]">
                       {{ dish.description }}
                     </p>
@@ -524,9 +556,15 @@ function categoryLabel(category: Category) {
         <div class="flex gap-3">
           <UIcon name="i-lucide-calendar-days" class="mt-0.5 size-5 shrink-0 text-[#C2592A]" />
           <div class="text-sm leading-relaxed text-[#5C4A3A]">
-            <p class="font-serif text-lg font-bold text-[#2B241B]">📅 Detalles del evento</p>
-            <p class="mt-2"><strong>Miércoles 25 · A partir de las 20:00h</strong></p>
-            <p class="mt-1">📍 <strong>Ágape</strong> — Calle Demóstenes, 21</p>
+            <p class="font-serif text-lg font-bold text-[#2B241B]">
+              📅 Detalles del evento
+            </p>
+            <p class="mt-2">
+              <strong>Miércoles 25 · A partir de las 20:00h</strong>
+            </p>
+            <p class="mt-1">
+              📍 <strong>Ágape</strong> — Calle Demóstenes, 21
+            </p>
           </div>
         </div>
       </section>
@@ -535,7 +573,9 @@ function categoryLabel(category: Category) {
         type="button"
         class="mt-3 min-h-12 w-full rounded-xl border border-[#E6D7C3] bg-[#FFFDF9] px-4 py-3 text-sm text-[#5C4A3A]"
         @click="recoveryOpen = true"
-      >🔍 ¿Ya te apuntaste desde otro móvil? <strong class="text-[#C2592A]">Busca tu nombre</strong></button>
+      >
+        🔍 ¿Ya te apuntaste desde otro móvil? <strong class="text-[#C2592A]">Busca tu nombre</strong>
+      </button>
     </footer>
 
     <UModal
@@ -551,14 +591,21 @@ function categoryLabel(category: Category) {
           <UFormField label="Nombre" name="first_name" required>
             <UInput v-model="signupForm.first_name" autocomplete="given-name" class="min-h-11 bg-white" />
           </UFormField>
-          <UFormField label="Apellido" name="last_name" required class="mt-3">
+          <UFormField
+            label="Apellido"
+            name="last_name"
+            required
+            class="mt-3"
+          >
             <UInput v-model="signupForm.last_name" autocomplete="family-name" class="min-h-11 bg-white" />
           </UFormField>
           <UFormField label="Detalle opcional" name="detail" class="mt-3">
             <UInput v-model="signupForm.detail" placeholder="Ej. Allergies, mesa con amigos..." class="min-h-11 bg-white" />
           </UFormField>
           <div class="mt-5 flex justify-end gap-2">
-            <UButton variant="ghost" @click="signupOpen = false">Cancelar</UButton>
+            <UButton variant="ghost" @click="signupOpen = false">
+              Cancelar
+            </UButton>
             <UButton type="submit" :loading="signupLoading" class="min-h-11 bg-[#C2592A] text-white">
               Confirmar
             </UButton>
@@ -598,7 +645,9 @@ function categoryLabel(category: Category) {
               <p class="truncate text-sm font-semibold">
                 {{ dishes.find(dish => dish.id === registration.dish_id)?.name || 'Plato' }}
               </p>
-              <p class="text-xs text-[#78716C]">{{ registration.first_name }} {{ registration.last_name }}</p>
+              <p class="text-xs text-[#78716C]">
+                {{ registration.first_name }} {{ registration.last_name }}
+              </p>
             </div>
             <UButton size="sm" class="shrink-0 bg-[#C2592A] text-white" @click="recoverRegistration(registration)">
               Vincular

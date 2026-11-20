@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://localhost:8000/api}
+        NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-http://localhost:8000}
+    image: gestionplatos:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSLMODE: ${DB_SSLMODE:-require}
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-admin}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+    restart: unless-stopped

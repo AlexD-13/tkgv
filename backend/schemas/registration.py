@@ -8,6 +8,7 @@ class RegistrationCreate(BaseModel):
     last_name: str = Field(min_length=1, max_length=80)
     dish_id: int
     client_id: str | None = None
+    note: str | None = None
 
 
 class RegistrationRead(BaseModel):
@@ -16,7 +17,8 @@ class RegistrationRead(BaseModel):
     first_name: str
     last_name: str
     client_id: str | None = None
-    created_at: str
+    created_at: datetime
+    note: str | None = None
 
 
 class RegistrationReassign(BaseModel):

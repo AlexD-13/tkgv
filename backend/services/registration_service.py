@@ -14,7 +14,7 @@ async def count_by_dish(db: AsyncSession, dish_id: int) -> int:
 async def list_by_client(db: AsyncSession, client_id: str) -> list[RegistrationRead]:
     result = await db.execute(
         text(
-            "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+            "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
             "FROM registrations WHERE client_id = :cid ORDER BY id"
         ),
         {"cid": client_id},
@@ -27,6 +27,7 @@ async def list_by_client(db: AsyncSession, client_id: str) -> list[RegistrationR
             first_name=r["first_name"],
             last_name=r["last_name"],
             client_id=r["client_id"],
+            note=r["note"],
             created_at=r["created_at"],
         )
         for r in rows
@@ -36,7 +37,7 @@ async def list_by_client(db: AsyncSession, client_id: str) -> list[RegistrationR
 async def list_all(db: AsyncSession) -> list[RegistrationRead]:
     result = await db.execute(
         text(
-            "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+            "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
             "FROM registrations ORDER BY dish_id, id"
         )
     )
@@ -48,6 +49,7 @@ async def list_all(db: AsyncSession) -> list[RegistrationRead]:
             first_name=r["first_name"],
             last_name=r["last_name"],
             client_id=r["client_id"],
+            note=r["note"],
             created_at=r["created_at"],
         )
         for r in rows
@@ -68,8 +70,8 @@ async def create_registration(
     # Lock the dish row, then verify and insert atomically (RNF-01).
     result = await db.execute(
         text(
-            "INSERT INTO registrations (dish_id, first_name, last_name, client_id) "
-            "SELECT :dish_id, :first_name, :last_name, :client_id "
+            "INSERT INTO registrations (dish_id, first_name, last_name, client_id, note) "
+            "SELECT :dish_id, :first_name, :last_name, :client_id, :note "
             "FROM dishes "
             "WHERE id = :dish_id AND active = TRUE "
             "AND (SELECT COUNT(*) FROM registrations WHERE dish_id = :dish_id) "
@@ -81,6 +83,7 @@ async def create_registration(
             "first_name": data.first_name,
             "last_name": data.last_name,
             "client_id": data.client_id,
+            "note": data.note,
         },
     )
     await db.commit()
@@ -95,7 +98,7 @@ async def create_registration(
     row = (
         await db.execute(
             text(
-                "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+                "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
                 "FROM registrations WHERE id = :id"
             ),
             {"id": int(new_id)},
@@ -107,6 +110,7 @@ async def create_registration(
         first_name=row["first_name"],
         last_name=row["last_name"],
         client_id=row["client_id"],
+        note=row["note"],
         created_at=row["created_at"],
     )
 
@@ -157,7 +161,7 @@ async def reassign_registration(
     row = (
         await db.execute(
             text(
-                "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+                "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
                 "FROM registrations WHERE id = :id"
             ),
             {"id": registration_id},
@@ -169,6 +173,7 @@ async def reassign_registration(
         first_name=row["first_name"],
         last_name=row["last_name"],
         client_id=row["client_id"],
+        note=row["note"],
         created_at=row["created_at"],
     )
 
@@ -203,7 +208,7 @@ async def search_by_name(db: AsyncSession, query: str) -> list[RegistrationRead]
 
     result = await db.execute(
         text(
-            "SELECT id, dish_id, first_name, last_name, client_id, created_at "
+            "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
             "FROM registrations "
             "WHERE LOWER(first_name) LIKE LOWER(:query) "
             "OR LOWER(last_name) LIKE LOWER(:query) "
@@ -220,6 +225,7 @@ async def search_by_name(db: AsyncSession, query: str) -> list[RegistrationRead]
             first_name=r["first_name"],
             last_name=r["last_name"],
             client_id=r["client_id"],
+            note=r["note"],
             created_at=r["created_at"],
         )
         for r in rows
@@ -247,7 +253,7 @@ async def claim_registration(
         text(
             "UPDATE registrations SET client_id = :client_id "
             "WHERE id = :id RETURNING id, dish_id, first_name, last_name, "
-            "client_id, created_at"
+            "client_id, note, created_at"
         ),
         {"id": registration_id, "client_id": client_id},
     )
@@ -261,5 +267,6 @@ async def claim_registration(
         first_name=row["first_name"],
         last_name=row["last_name"],
         client_id=row["client_id"],
+        note=row["note"],
         created_at=row["created_at"],
     )

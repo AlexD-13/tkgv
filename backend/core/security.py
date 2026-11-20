@@ -7,6 +7,9 @@ def _extract_token(request: Request) -> str | None:
     token = request.headers.get("X-Admin-Token")
     if token:
         return token
+    auth = request.headers.get("Authorization")
+    if auth and auth.lower().startswith("bearer "):
+        return auth.split(" ", 1)[1].strip()
     return request.cookies.get("admin_token")
 
 

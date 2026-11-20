@@ -1,4 +1,4 @@
-export const useApiFetch = <T>(path: string, options: any = {}) => {
+export const useApiFetch = <T>(path: string, options: Record<string, unknown> = {}) => {
   const config = useRuntimeConfig()
   return useFetch<T>(`${config.public.apiBase}${path}`, {
     lazy: true,

@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# Agent IA
+.codegraph
+.atl
+docs/
+
+# Python
+**/__pycache__
+**/*.pyc
+**/.venv
+backend/database.db
+backend/database.db-*
+backend/logs
+backend/.env
+
+# Node / Nuxt
+**/node_modules
+**/.nuxt
+**/.output
+frontend/.env
+
+# Local runtime
+.runtime
+.env

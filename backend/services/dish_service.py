@@ -2,6 +2,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.dish import DishCreate, DishUpdate, DishPublic, DishAdmin
+from schemas.registration import RegistrationRead
 
 
 async def _count_registrations(db: AsyncSession, dish_id: int) -> int:
@@ -21,6 +22,29 @@ async def _fetch_dish_row(db: AsyncSession, dish_id: int):
     )
     return result.mappings().first()
 
+
+
+async def _registrations_for_dish(db: AsyncSession, dish_id: int) -> list[RegistrationRead]:
+    result = await db.execute(
+        text(
+            "SELECT id, dish_id, first_name, last_name, client_id, note, created_at "
+            "FROM registrations WHERE dish_id = :id ORDER BY id"
+        ),
+        {"id": dish_id},
+    )
+    rows = result.mappings().all()
+    return [
+        RegistrationRead(
+            id=r["id"],
+            dish_id=r["dish_id"],
+            first_name=r["first_name"],
+            last_name=r["last_name"],
+            client_id=r["client_id"],
+            note=r["note"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
 
 async def list_public(db: AsyncSession) -> list[DishPublic]:
     result = await db.execute(
@@ -55,6 +79,7 @@ async def list_admin(db: AsyncSession) -> list[DishAdmin]:
     out: list[DishAdmin] = []
     for r in rows:
         registered = await _count_registrations(db, r["id"])
+        registrations = await _registrations_for_dish(db, int(r["id"]))
         out.append(
             DishAdmin(
                 id=r["id"],
@@ -68,6 +93,7 @@ async def list_admin(db: AsyncSession) -> list[DishAdmin]:
                 registered=registered,
                 created_at=r["created_at"],
                 updated_at=r["updated_at"],
+                registrations=registrations,
             )
         )
     return out
@@ -78,6 +104,7 @@ async def get_admin(db: AsyncSession, dish_id: int) -> DishAdmin | None:
     if r is None:
         return None
     registered = await _count_registrations(db, dish_id)
+    registrations = await _registrations_for_dish(db, dish_id)
     return DishAdmin(
         id=r["id"],
         name=r["name"],
@@ -90,6 +117,7 @@ async def get_admin(db: AsyncSession, dish_id: int) -> DishAdmin | None:
         registered=registered,
         created_at=r["created_at"],
         updated_at=r["updated_at"],
+        registrations=registrations,
     )
 
 

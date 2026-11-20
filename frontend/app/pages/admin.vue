@@ -3,6 +3,33 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 
 definePageMeta({ layout: 'public' })
 
+interface AdminRegistration {
+  id: number
+  dish_id: number
+  first_name: string
+  last_name: string
+  note?: string | null
+}
+
+interface AdminDish {
+  id: number
+  name: string
+  description: string | null
+  category: string | null
+  min_quota: number
+  max_quota: number
+  tested: boolean
+  active: boolean
+  registered: number
+  registrations: AdminRegistration[]
+}
+
+interface AttendanceGroup {
+  dish_id: number
+  dish_name: string
+  registrations: AdminRegistration[]
+}
+
 const admin = useAdmin()
 const toast = useToast()
 
@@ -21,30 +48,44 @@ function logout() {
 }
 
 // Data
-const dishes = ref<any[]>([])
-const proposals = ref<any[]>([])
-const attendance = ref<any[]>([])
+const dishes = ref<AdminDish[]>([])
+const attendance = ref<AttendanceGroup[]>([])
 const loading = ref(false)
 
 async function loadAll() {
   if (!admin.isAuthed.value) return
   loading.value = true
   try {
-    dishes.value = await admin.get('/admin/dishes')
-    proposals.value = await admin.get('/admin/proposals?status=pending')
-    attendance.value = await admin.get('/admin/attendance')
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message ?? 'Error al cargar', color: 'error' })
+    const [dishesRes, attendanceRes] = await Promise.allSettled([
+      admin.get('/admin/dishes'),
+      admin.get('/admin/attendance')
+    ])
+    if (dishesRes.status === 'fulfilled') {
+      dishes.value = dishesRes.value as AdminDish[]
+    } else {
+      toast.add({ title: 'Error', description: (dishesRes.reason as { data?: { detail?: string }, message?: string })?.data?.detail ?? (dishesRes.reason as { data?: { detail?: string }, message?: string })?.message ?? 'No se pudieron cargar los platos', color: 'error' })
+    }
+    if (attendanceRes.status === 'fulfilled') {
+      attendance.value = attendanceRes.value as AttendanceGroup[]
+    } else {
+      toast.add({ title: 'Error', description: (attendanceRes.reason as { data?: { detail?: string }, message?: string })?.data?.detail ?? (attendanceRes.reason as { data?: { detail?: string }, message?: string })?.message ?? 'No se pudo cargar la asistencia', color: 'error' })
+    }
   } finally {
     loading.value = false
   }
 }
 
-watch(() => admin.isAuthed.value, (v) => { if (v) loadAll() }, { immediate: true })
+watch(
+  () => admin.isAuthed.value,
+  (v) => {
+    if (v) loadAll()
+  },
+  { immediate: true }
+)
 
 // Dish create/edit
 const dishModal = ref(false)
-const editingDish = ref<any>(null)
+const editingDish = ref<AdminDish | null>(null)
 const dishForm = reactive({ name: '', description: '', category: 'Comida', min_quota: 0, max_quota: 5, tested: false, active: true })
 const dishLoading = ref(false)
 
@@ -53,7 +94,7 @@ function openCreateDish() {
   Object.assign(dishForm, { name: '', description: '', category: 'Comida', min_quota: 0, max_quota: 5, tested: false, active: true })
   dishModal.value = true
 }
-function openEditDish(d: any) {
+function openEditDish(d: AdminDish) {
   editingDish.value = d
   Object.assign(dishForm, {
     name: d.name, description: d.description ?? '', category: d.category ?? 'Comida', min_quota: d.min_quota,
@@ -62,7 +103,7 @@ function openEditDish(d: any) {
   dishModal.value = true
 }
 
-async function submitDish(event: FormSubmitEvent<any>) {
+async function submitDish(_event: FormSubmitEvent<Record<string, unknown>>) {
   dishLoading.value = true
   try {
     const payload = { ...dishForm }
@@ -75,277 +116,493 @@ async function submitDish(event: FormSubmitEvent<any>) {
     }
     dishModal.value = false
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
+  } catch (e: unknown) {
+    const err = e as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail ?? err?.message, color: 'error' })
   } finally {
     dishLoading.value = false
   }
 }
 
-async function deactivateDish(d: any) {
+async function deactivateDish(d: AdminDish) {
   try {
     await admin.post(`/admin/dishes/${d.id}/deactivate`)
     toast.add({ title: 'Desactivado', color: 'success' })
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
+  } catch (e: unknown) {
+    const err = e as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail ?? err?.message, color: 'error' })
   }
 }
 
-// Proposals
-const approveModal = ref(false)
-const approvingProposal = ref<any>(null)
-const approveForm = reactive({ min_quota: 0, max_quota: 5, tested: false })
-const approveLoading = ref(false)
-
-function openApprove(p: any) {
-  approvingProposal.value = p
-  Object.assign(approveForm, { min_quota: 0, max_quota: 5, tested: false })
-  approveModal.value = true
-}
-
-async function submitApprove() {
-  if (!approvingProposal.value) return
-  approveLoading.value = true
+async function toggleTested(dish: AdminDish) {
   try {
-    await admin.post(`/admin/proposals/${approvingProposal.value.id}/approve`, { ...approveForm })
-    toast.add({ title: 'Aprobado', color: 'success' })
-    approveModal.value = false
+    await admin.patch(`/admin/dishes/${dish.id}`, { tested: !dish.tested })
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
-  } finally {
-    approveLoading.value = false
+    toast.add({ title: 'Estado probado actualizado', color: 'success' })
+  } catch (error: unknown) {
+    const err = error as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail || err?.message, color: 'error' })
   }
 }
 
-async function rejectProposalPost(p: any) {
+async function toggleActive(dish: AdminDish) {
   try {
-    await admin.post(`/admin/proposals/${p.id}/reject`, {})
-    toast.add({ title: 'Descartado', color: 'success' })
+    await admin.patch(`/admin/dishes/${dish.id}`, { active: !dish.active })
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
+    toast.add({ title: 'Estado activo actualizado', color: 'success' })
+  } catch (error: unknown) {
+    const err = error as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail || err?.message, color: 'error' })
   }
 }
 
-// Attendance reassign
+// Attendance reassign / delete
 const reassignMap = reactive<Record<number, number>>({})
 
-async function deleteReg(reg: any) {
+async function deleteReg(reg: AdminRegistration) {
   try {
     await admin.del(`/admin/registrations/${reg.id}`)
     toast.add({ title: 'Eliminado', color: 'success' })
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
+  } catch (e: unknown) {
+    const err = e as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail ?? err?.message, color: 'error' })
   }
 }
 
-async function reassignReg(reg: any) {
+async function reassignReg(reg: AdminRegistration) {
   const newId = reassignMap[reg.id]
   if (!newId) return
   try {
     await admin.patch(`/admin/registrations/${reg.id}`, { new_dish_id: newId })
     toast.add({ title: 'Reasignado', color: 'success' })
     await loadAll()
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.detail ?? e?.message, color: 'error' })
+  } catch (e: unknown) {
+    const err = e as { data?: { detail?: string }, message?: string }
+    toast.add({ title: 'Error', description: err?.data?.detail ?? err?.message, color: 'error' })
   }
 }
 
+// Tabs
 const tabs = [
   { label: 'Platos', value: 'dishes', icon: 'i-lucide-utensils' },
-  { label: 'Propuestas', value: 'proposals', icon: 'i-lucide-inbox' },
   { label: 'Asistencia', value: 'attendance', icon: 'i-lucide-users' }
 ]
 const activeTab = ref('dishes')
 
+// People grouping for attendance
+const categoryEmoji: Record<string, string> = {
+  Aperitivo: '🧀',
+  Comida: '🍗',
+  Postre: '🥧',
+  Bebida: '🥂'
+}
+
+const people = computed(() => {
+  const map = new Map<string, { name: string, dishes: { dish: string, note?: string | null }[] }>()
+  for (const group of attendance.value) {
+    for (const r of group.registrations || []) {
+      const name = `${r.first_name} ${r.last_name}`.trim()
+      const key = name.toLowerCase()
+      if (!map.has(key)) map.set(key, { name, dishes: [] })
+      map.get(key)!.dishes.push({ dish: group.dish_name, note: r.note })
+    }
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const totalParticipants = computed(() => people.value.length)
+
+// WhatsApp messages
 async function copyMessage(message: string) {
-  await navigator.clipboard.writeText(message)
-  toast.add({ title: '¡Copiado!', description: 'Mensaje listo para WhatsApp', color: 'success' })
+  try {
+    await navigator.clipboard.writeText(message)
+    toast.add({ title: '¡Copiado!', description: 'Mensaje listo para WhatsApp', color: 'success' })
+  } catch {
+    toast.add({ title: 'Error', description: 'No se pudo copiar al portapapeles', color: 'error' })
+    console.log()
+  }
+}
+
+function dishCategoryEmoji(dish: AdminDish) {
+  return categoryEmoji[dish.category?.trim() || ""] || "🍽️"
 }
 
 function copyFreeSeats() {
-  const categories = ['Aperitivo', 'Comida', 'Postre', 'Bebida']
-  const lines = ['🦃 Thanksgiving-Q Málaga · Plazas libres']
-  for (const category of categories) {
-    const items = dishes.value
-      .filter(dish => dish.active && dish.registered < dish.max_quota)
-      .filter(dish => (dish.category?.trim().toLowerCase() || '') === category.toLowerCase())
-      .map(dish => `• ${dish.name}: ${dish.max_quota - dish.registered} plaza(s)`)
-    if (items.length) lines.push(`\n${category}\n${items.join('\n')}`)
+  const freeDishes = dishes.value
+    .filter(d => d.active && d.registered < d.max_quota)
+    .sort((a, b) => {
+      const aNeeds = a.registered < (a.min_quota ?? 0)
+      const bNeeds = b.registered < (b.min_quota ?? 0)
+      if (aNeeds !== bNeeds) return aNeeds ? -1 : 1
+      return String(a.category || '').localeCompare(String(b.category || ''))
+    })
+
+  if (!freeDishes.length) {
+    copyMessage('🦃 Thanksgiving-Q Málaga\n\nTodos los platos están completos. ¡Gracias a todos! 🎉')
+    return
   }
-  copyMessage(lines.join('\n'))
+
+  const lines: string[] = ['🦃 Thanksgiving-Q Málaga · Plazas libres', '']
+  const categories = ['Aperitivo', 'Comida', 'Postre', 'Bebida']
+  for (const category of categories) {
+    const items = freeDishes.filter(d => (d.category?.trim().toLowerCase() || '') === category.toLowerCase())
+    if (!items.length) continue
+    lines.push(`${categoryEmoji[category]} ${category}`)
+    for (const dish of items) {
+      const free = dish.max_quota - dish.registered
+      lines.push(`• ${dishCategoryEmoji(dish)} ${dish.name} (quedan ${free} plaza${free === 1 ? '' : 's'})`)
+    }
+    lines.push('')
+  }
+  // dishes with unknown category
+  const unknown = freeDishes.filter(d => !categories.map(c => c.toLowerCase()).includes((d.category?.trim().toLowerCase() || '')))
+  if (unknown.length) {
+    lines.push('🍽️ Otros')
+    for (const dish of unknown) {
+      const free = dish.max_quota - dish.registered
+      lines.push(`• ${dishCategoryEmoji(dish)} ${dish.name} (quedan ${free} plaza${free === 1 ? '' : 's'})`)
+    }
+    lines.push('')
+  }
+  copyMessage(lines.join('\n').trim())
 }
 
 function copyFullSummary() {
+  const activeDishes = dishes.value.filter(d => d.active)
+  const lines: string[] = ['🦃 Thanksgiving-Q Málaga · Resumen completo', '']
+  let totalComensales = 0
+  let platosCubiertos = 0
   const categories = ['Aperitivo', 'Comida', 'Postre', 'Bebida']
-  const lines = ['🦃 Thanksgiving-Q Málaga · Resumen completo']
-  for (const category of categories) {
-    const items = dishes.value.filter(dish => (dish.category?.trim().toLowerCase() || '') === category.toLowerCase())
+  const allCats = [...categories, ...new Set(activeDishes.map(d => d.category?.trim()).filter(c => c && !categories.includes(c)))]
+
+  for (const category of allCats) {
+    const items = activeDishes.filter(d => (d.category?.trim().toLowerCase() || '') === String(category).toLowerCase())
     if (!items.length) continue
-    lines.push(`\n${category}`)
+    lines.push(`${categoryEmoji[category as string] || '🍽️'} ${category}`)
     for (const dish of items) {
-      const group = attendance.value.find((item: any) => item.dish_id === dish.id)
-      const people = group?.registrations?.map((item: any) => `${item.first_name} ${item.last_name}`).join(', ') || 'Sin apuntados'
+      const regs = dish.registrations || []
+      const peopleNames = regs.map((r: AdminRegistration) => `${r.first_name} ${r.last_name}${r.note ? ` (${r.note})` : ''}`).join(', ') || 'Sin apuntados'
       const pending = Math.max(0, dish.max_quota - dish.registered)
-      lines.push(`• ${dish.name}: ${dish.registered}/${dish.max_quota} (${pending} pendientes)\n  ${people}`)
+      lines.push(`• ${dish.name}: ${dish.registered}/${dish.max_quota} (${pending} libres)`)
+      lines.push(`  ${peopleNames}`)
+      totalComensales += (dish.registered || 0)
+      if ((dish.registered || 0) >= (dish.min_quota || 0)) platosCubiertos++
     }
+    lines.push('')
   }
-  copyMessage(lines.join('\n'))
+  lines.push(`Total comensales: ${totalComensales}`)
+  lines.push(`Platos cubiertos: ${platosCubiertos}/${activeDishes.length}`)
+  copyMessage(lines.join('\n').trim())
 }
 
-async function toggleTested(dish: any) {
-  try {
-    await admin.patch(`/admin/dishes/${dish.id}`, { tested: !dish.tested })
-    await loadAll()
-    toast.add({ title: 'Estado probado actualizado', color: 'success' })
-  } catch (error: any) {
-    toast.add({ title: 'Error', description: error?.data?.detail || error?.message, color: 'error' })
-  }
+function dishStatusClasses(dish: AdminDish) {
+  const registered = dish.registered || 0
+  const min = dish.min_quota || 0
+  const max = dish.max_quota || 1
+  if (registered >= max) return 'bg-[#EEE9E1] text-[#78716C]'
+  if (registered >= min) return 'bg-[#E8EFE7] text-[#4F6A53]'
+  return 'bg-[#F6E8C7] text-[#A66A1F]'
 }
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl px-4 py-8">
-    <header class="mb-6 flex items-center justify-between">
-      <h1 class="text-2xl font-bold">Panel de administración</h1>
-      <UButton v-if="admin.isAuthed.value" variant="ghost" size="sm" @click="logout">Salir</UButton>
-    </header>
-
-    <!-- Token gate -->
-    <UCard v-if="!admin.isAuthed.value">
-      <template #header>
-        <h2 class="font-semibold">Acceso restringido</h2>
-      </template>
-      <div class="flex gap-2">
-        <UInput v-model="tokenInput" type="password" placeholder="Token de administrador" class="flex-1" />
-        <UButton @click="saveToken">Entrar</UButton>
-      </div>
-    </UCard>
-
-    <div v-else>
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <UTabs v-model="activeTab" :items="tabs" />
-        <div class="flex flex-wrap gap-2">
-          <UButton size="sm" variant="outline" @click="copyFreeSeats">Copiar plazas libres</UButton>
-          <UButton size="sm" variant="outline" @click="copyFullSummary">Resumen completo</UButton>
-        </div>
-        <UButton size="sm" variant="outline" :loading="loading" @click="loadAll">
-          <UIcon name="i-lucide-refresh-cw" class="size-4" />
+  <div class="min-h-dvh bg-[#FAF6F0] px-4 py-6 text-[#2B241B]">
+    <div class="mx-auto max-w-5xl">
+      <header class="mb-6 flex items-center justify-between">
+        <h1 class="font-serif text-2xl font-bold">
+          Panel de administración
+        </h1>
+        <UButton
+          v-if="admin.isAuthed.value"
+          variant="ghost"
+          size="sm"
+          class="text-[#78716C]"
+          @click="logout"
+        >
+          Salir
         </UButton>
+      </header>
+
+      <!-- Token gate -->
+      <div v-if="!admin.isAuthed.value" class="rounded-2xl border border-[#E8DFD5] bg-white p-5 shadow-sm">
+        <h2 class="mb-3 font-semibold">
+          Acceso restringido
+        </h2>
+        <div class="flex gap-2">
+          <UInput
+            v-model="tokenInput"
+            type="password"
+            placeholder="Token de administrador"
+            class="flex-1 bg-white"
+          />
+          <UButton class="bg-[#C2592A] text-white hover:bg-[#A3461D]" @click="saveToken">
+            Entrar
+          </UButton>
+        </div>
       </div>
 
-      <!-- Dishes -->
-      <div v-if="activeTab === 'dishes'">
-        <div class="mb-3 flex justify-end">
-          <UButton size="sm" @click="openCreateDish">Nuevo plato</UButton>
-        </div>
-        <UTable :data="dishes" :columns="[
-          { accessorKey: 'name', header: 'Plato' },
-          { accessorKey: 'min_quota', header: 'Mín' },
-          { accessorKey: 'max_quota', header: 'Máx' },
-          { accessorKey: 'registered', header: 'Inscritos' },
-          { accessorKey: 'tested', header: 'Probado' },
-          { accessorKey: 'active', header: 'Activo' },
-          { accessorKey: 'actions', header: '' }
-        ]">
-          <template #name-cell="{ row }">
-            <div>
-              <p class="font-semibold">{{ row.original.name }}</p>
-              <p
-                v-if="row.original.registered < row.original.min_quota"
-                class="mt-1 text-xs font-medium text-[#A66A1F]"
-              >Faltan {{ row.original.min_quota - row.original.registered }} para cubrir el mínimo</p>
-            </div>
-          </template>
-          <template #tested-cell="{ row }">
+      <div v-else>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex gap-2">
+            <button
+              v-for="tab in tabs"
+              :key="tab.value"
+              type="button"
+              class="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition"
+              :class="activeTab === tab.value
+                ? 'bg-[#C2592A] text-white shadow-sm'
+                : 'border border-[#E8DFD5] bg-white text-[#5C4A3A]'"
+              @click="activeTab = tab.value"
+            >
+              <UIcon :name="tab.icon" class="size-4" />
+              {{ tab.label }}
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2">
             <UButton
-              size="xs"
-              :variant="row.original.tested ? 'solid' : 'outline'"
-              :color="row.original.tested ? 'success' : 'neutral'"
-              @click="toggleTested(row.original)"
-            >{{ row.original.tested ? 'Probado ✓' : 'Sin probar' }}</UButton>
-          </template>
-          <template #active-cell="{ row }">
-            <UBadge :color="row.original.active ? 'success' : 'error'" variant="subtle">
-              {{ row.original.active ? 'Sí' : 'No' }}
-            </UBadge>
-          </template>
-          <template #actions-cell="{ row }">
-            <div class="flex gap-1">
-              <UButton size="xs" variant="ghost" @click="openEditDish(row.original)">Editar</UButton>
-              <UButton
-                v-if="row.original.active"
-                size="xs" variant="ghost" color="error"
-                @click="deactivateDish(row.original)"
-              >Desactivar</UButton>
-            </div>
-          </template>
-        </UTable>
-      </div>
+              size="sm"
+              variant="outline"
+              class="border-[#E8DFD5] text-[#5C4A3A]"
+              @click="copyFreeSeats"
+            >
+              Copiar plazas libres
+            </UButton>
+            <UButton
+              size="sm"
+              variant="outline"
+              class="border-[#E8DFD5] text-[#5C4A3A]"
+              @click="copyFullSummary"
+            >
+              Resumen completo
+            </UButton>
+            <UButton
+              size="sm"
+              variant="outline"
+              class="border-[#E8DFD5] text-[#5C4A3A]"
+              :loading="loading"
+              @click="loadAll"
+            >
+              <UIcon name="i-lucide-refresh-cw" class="size-4" />
+            </UButton>
+          </div>
+        </div>
 
-      <!-- Proposals -->
-      <div v-if="activeTab === 'proposals'">
-        <div v-if="proposals.length === 0" class="text-center text-muted py-8">
-          No hay propuestas pendientes.
-        </div>
-        <div v-else class="space-y-3">
-          <UCard v-for="p in proposals" :key="p.id">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <h3 class="font-semibold">{{ p.dish_name }}</h3>
-                <p v-if="p.description" class="text-sm text-muted mt-1">{{ p.description }}</p>
-                <p class="text-xs text-muted mt-1">
-                  Propuesto por {{ p.first_name }} {{ p.last_name }} · {{ p.created_at }}
-                </p>
-              </div>
-              <div class="shrink-0 flex gap-2">
-                <UButton size="xs" color="success" @click="openApprove(p)">Aprobar</UButton>
-                <UButton size="xs" color="error" variant="outline" @click="rejectProposalPost(p)">Descartar</UButton>
-              </div>
-            </div>
-          </UCard>
-        </div>
-      </div>
+        <!-- Dishes -->
+        <div v-if="activeTab === 'dishes'">
+          <div class="mb-3 flex justify-end">
+            <UButton size="sm" class="bg-[#C2592A] text-white hover:bg-[#A3461D]" @click="openCreateDish">
+              Nuevo plato
+            </UButton>
+          </div>
 
-      <!-- Attendance -->
-      <div v-if="activeTab === 'attendance'">
-        <div v-if="attendance.length === 0" class="text-center text-muted py-8">
-          Sin datos.
-        </div>
-        <div v-else class="space-y-4">
-          <UCard v-for="g in attendance" :key="g.dish_id">
-            <template #header>
-              <div class="flex items-center justify-between">
-                <h3 class="font-semibold">{{ g.dish_name }}</h3>
-                <UBadge variant="subtle">{{ g.registrations.length }} inscritos</UBadge>
-              </div>
-            </template>
-            <div v-if="g.registrations.length === 0" class="text-sm text-muted">
-              Sin inscritos.
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="r in g.registrations"
-                :key="r.id"
-                class="flex items-center justify-between gap-2 rounded border p-2"
-              >
-                <span class="text-sm">{{ r.first_name }} {{ r.last_name }}</span>
-                <div class="flex items-center gap-2">
-                  <USelect
-                    v-model="reassignMap[r.id]"
-                    :items="dishes.filter(d => d.active).map(d => ({ label: d.name, value: d.id }))"
+          <div v-if="loading && dishes.length === 0" class="flex justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-[#C2592A]" />
+          </div>
+
+          <div v-else class="space-y-4">
+            <div
+              v-for="dish in dishes"
+              :key="dish.id"
+              class="rounded-2xl border border-[#E8DFD5] bg-white p-4 shadow-sm"
+              :class="!dish.active ? 'opacity-60' : ''"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-lg">{{ dishCategoryEmoji(dish) }}</span>
+                    <h3 class="text-lg font-bold leading-snug">
+                      {{ dish.name }}
+                    </h3>
+                    <UBadge variant="subtle" class="border border-[#E8DFD5] bg-[#FAF6F0] text-[#78716C]">
+                      {{ dish.category || 'Sin categoría' }}
+                    </UBadge>
+                  </div>
+                  <p v-if="dish.description" class="mt-1 text-sm text-[#78716C]">
+                    {{ dish.description }}
+                  </p>
+                  <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-[#5C4A3A]">
+                    <span>Mín: <strong>{{ dish.min_quota }}</strong></span>
+                    <span>Máx: <strong>{{ dish.max_quota }}</strong></span>
+                    <span>Inscritos: <strong>{{ dish.registered }}</strong></span>
+                    <UBadge variant="subtle" :class="dishStatusClasses(dish)">
+                      {{ dish.registered }}/{{ dish.max_quota }}
+                    </UBadge>
+                    <span v-if="dish.registered < dish.min_quota" class="text-xs font-medium text-[#A66A1F]">
+                      Faltan {{ dish.min_quota - dish.registered }} para cubrir el mínimo
+                    </span>
+                  </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <UButton
                     size="xs"
-                    placeholder="Reasignar a..."
-                  />
-                  <UButton size="xs" variant="ghost" @click="reassignReg(r)">Mover</UButton>
-                  <UButton size="xs" variant="ghost" color="error" @click="deleteReg(r)">Eliminar</UButton>
+                    :class="dish.tested ? 'bg-[#4F6A53] text-white' : 'border border-[#E8DFD5] text-[#78716C]'"
+                    @click="toggleTested(dish)"
+                  >
+                    {{ dish.tested ? 'Probado ✓' : 'Sin probar' }}
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    :class="dish.active ? 'bg-[#C2592A] text-white' : 'border border-[#E8DFD5] text-[#78716C]'"
+                    @click="toggleActive(dish)"
+                  >
+                    {{ dish.active ? 'Activo' : 'Inactivo' }}
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    class="text-[#5C4A3A]"
+                    @click="openEditDish(dish)"
+                  >
+                    Editar
+                  </UButton>
+                  <UButton
+                    v-if="dish.active"
+                    size="xs"
+                    variant="ghost"
+                    class="text-[#9A5140]"
+                    @click="deactivateDish(dish)"
+                  >
+                    Desactivar
+                  </UButton>
+                </div>
+              </div>
+
+              <!-- Inscritos badges -->
+              <div class="mt-3 border-t border-[#E8DFD5] pt-3">
+                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-[#78716C]">
+                  Inscritos
+                </p>
+                <div v-if="(dish.registrations || []).length === 0" class="text-sm text-[#78716C]">
+                  Sin inscritos.
+                </div>
+                <div v-else class="flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="reg in dish.registrations"
+                    :key="reg.id"
+                    variant="subtle"
+                    class="border border-[#E8DFD5] bg-[#FAF6F0] text-[#2B241B]"
+                  >
+                    {{ reg.first_name }} {{ reg.last_name }}<span v-if="reg.note" class="ml-1 text-[#78716C]">· {{ reg.note }}</span>
+                  </UBadge>
                 </div>
               </div>
             </div>
-          </UCard>
+
+            <div v-if="dishes.length === 0" class="rounded-2xl border border-dashed border-[#E8DFD5] py-10 text-center text-sm text-[#78716C]">
+              No hay platos.
+            </div>
+          </div>
+        </div>
+
+        <!-- Attendance -->
+        <div v-if="activeTab === 'attendance'">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="font-serif text-xl font-bold">
+              Asistencia
+            </h2>
+            <UBadge variant="subtle" class="border border-[#E8DFD5] bg-white text-[#2B241B]">
+              {{ totalParticipants }} participantes confirmados
+            </UBadge>
+          </div>
+
+          <div v-if="loading && attendance.length === 0" class="flex justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-[#C2592A]" />
+          </div>
+
+          <div v-else-if="people.length === 0" class="rounded-2xl border border-dashed border-[#E8DFD5] py-10 text-center text-sm text-[#78716C]">
+            Sin asistentes.
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="person in people"
+              :key="person.name"
+              class="rounded-2xl border border-[#E8DFD5] bg-white p-4 shadow-sm"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h3 class="font-semibold">
+                    {{ person.name }}
+                  </h3>
+                  <p class="mt-1 text-sm text-[#78716C]">
+                    Lleva {{ person.dishes.length }} plato{{ person.dishes.length === 1 ? '' : 's' }}:
+                    {{ person.dishes.map(d => d.dish).join(', ') }}
+                  </p>
+                  <div v-if="person.dishes.some(d => d.note)" class="mt-2 flex flex-wrap gap-2">
+                    <UBadge
+                      v-for="(d, idx) in person.dishes.filter(d => d.note)"
+                      :key="idx"
+                      variant="subtle"
+                      class="border border-[#E8DFD5] bg-[#FAF6F0] text-[#78716C]"
+                    >
+                      {{ d.dish }}: {{ d.note }}
+                    </UBadge>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Per-dish detail -->
+            <div class="mt-6">
+              <h3 class="mb-2 font-serif text-lg font-bold">
+                Detalle por plato
+              </h3>
+              <div class="space-y-3">
+                <div
+                  v-for="g in attendance"
+                  :key="g.dish_id"
+                  class="rounded-2xl border border-[#E8DFD5] bg-white p-4 shadow-sm"
+                >
+                  <div class="mb-2 flex items-center justify-between">
+                    <h4 class="font-semibold">
+                      {{ g.dish_name }}
+                    </h4>
+                    <UBadge variant="subtle" class="border border-[#E8DFD5] bg-[#FAF6F0] text-[#2B241B]">
+                      {{ g.registrations.length }} inscritos
+                    </UBadge>
+                  </div>
+                  <div v-if="g.registrations.length === 0" class="text-sm text-[#78716C]">
+                    Sin inscritos.
+                  </div>
+                  <div v-else class="space-y-2">
+                    <div
+                      v-for="r in g.registrations"
+                      :key="r.id"
+                      class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#E8DFD5] bg-[#FAF6F0] p-2"
+                    >
+                      <span class="text-sm">{{ r.first_name }} {{ r.last_name }}<span v-if="r.note" class="ml-1 text-[#78716C]">· {{ r.note }}</span></span>
+                      <div class="flex items-center gap-2">
+                        <USelect
+                          v-model="reassignMap[r.id]"
+                          :items="dishes.filter(d => d.active).map(d => ({ label: d.name, value: d.id }))"
+                          size="xs"
+                          placeholder="Reasignar a..."
+                        />
+                        <UButton
+                          size="xs"
+                          variant="ghost"
+                          class="text-[#5C4A3A]"
+                          @click="reassignReg(r)"
+                        >
+                          Mover
+                        </UButton>
+                        <UButton
+                          size="xs"
+                          variant="ghost"
+                          class="text-[#9A5140]"
+                          @click="deleteReg(r)"
+                        >
+                          Eliminar
+                        </UButton>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -355,25 +612,28 @@ async function toggleTested(dish: any) {
       <template #body>
         <UForm :state="dishForm" @submit="submitDish">
           <UFormField label="Nombre" name="name" required>
-            <UInput v-model="dishForm.name" />
+            <UInput v-model="dishForm.name" class="bg-white" />
           </UFormField>
           <UFormField label="Descripción" name="description" class="mt-3">
-            <UTextarea v-model="dishForm.description" />
+            <UTextarea v-model="dishForm.description" class="bg-white" />
           </UFormField>
           <UFormField label="Categoría" name="category" class="mt-3">
-            <USelect v-model="dishForm.category" :items="[
-              { label: 'Comida', value: 'Comida' },
-              { label: 'Bebida', value: 'Bebida' },
-              { label: 'Postre', value: 'Postre' },
-              { label: 'Aperitivo', value: 'Aperitivo' }
-            ]" />
+            <USelect
+              v-model="dishForm.category"
+              :items="[
+                { label: 'Aperitivo', value: 'Aperitivo' },
+                { label: 'Comida', value: 'Comida' },
+                { label: 'Postre', value: 'Postre' },
+                { label: 'Bebida', value: 'Bebida' }
+              ]"
+            />
           </UFormField>
           <div class="mt-3 grid grid-cols-2 gap-3">
             <UFormField label="Cupo mínimo" name="min_quota">
-              <UInput v-model.number="dishForm.min_quota" type="number" />
+              <UInput v-model.number="dishForm.min_quota" type="number" class="bg-white" />
             </UFormField>
             <UFormField label="Cupo máximo" name="max_quota">
-              <UInput v-model.number="dishForm.max_quota" type="number" />
+              <UInput v-model.number="dishForm.max_quota" type="number" class="bg-white" />
             </UFormField>
           </div>
           <div class="mt-3 flex gap-4">
@@ -381,34 +641,12 @@ async function toggleTested(dish: any) {
             <UCheckbox v-model="dishForm.active" label="Activo" />
           </div>
           <div class="mt-4 flex justify-end gap-2">
-            <UButton variant="ghost" @click="dishModal = false">Cancelar</UButton>
-            <UButton type="submit" :loading="dishLoading">Guardar</UButton>
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-
-    <!-- Approve modal -->
-    <UModal v-model:open="approveModal" title="Aprobar propuesta">
-      <template #body>
-        <p v-if="approvingProposal" class="mb-4 text-sm text-muted">
-          Plato: <strong>{{ approvingProposal.dish_name }}</strong>
-        </p>
-        <UForm :state="approveForm" @submit="submitApprove">
-          <div class="grid grid-cols-2 gap-3">
-            <UFormField label="Cupo mínimo" name="min_quota">
-              <UInput v-model.number="approveForm.min_quota" type="number" />
-            </UFormField>
-            <UFormField label="Cupo máximo" name="max_quota">
-              <UInput v-model.number="approveForm.max_quota" type="number" />
-            </UFormField>
-          </div>
-          <div class="mt-3">
-            <UCheckbox v-model="approveForm.tested" label="Probado/validado" />
-          </div>
-          <div class="mt-4 flex justify-end gap-2">
-            <UButton variant="ghost" @click="approveModal = false">Cancelar</UButton>
-            <UButton type="submit" :loading="approveLoading">Aprobar y publicar</UButton>
+            <UButton variant="ghost" @click="dishModal = false">
+              Cancelar
+            </UButton>
+            <UButton type="submit" :loading="dishLoading" class="bg-[#C2592A] text-white hover:bg-[#A3461D]">
+              Guardar
+            </UButton>
           </div>
         </UForm>
       </template>

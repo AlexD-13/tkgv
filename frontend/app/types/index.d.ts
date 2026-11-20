@@ -76,6 +76,7 @@ export interface Registration {
   last_name: string
   client_id: string | null
   created_at: string
+  note?: string | null
 }
 
 export interface Proposal {

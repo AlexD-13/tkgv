@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from schemas.registration import RegistrationRead
+
 
 class DishBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -47,8 +49,9 @@ class DishAdmin(BaseModel):
     tested: bool
     active: bool
     registered: int
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
+    registrations: list[RegistrationRead] = []
 
 
 class DishOccupancy(BaseModel):

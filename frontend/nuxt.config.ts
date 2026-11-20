@@ -1,21 +1,21 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  ssr: false,
-
-  app: {
-    head: {
-      title: 'Thanksgiving-Q Málaga'
-    }
-  },
 
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
     '@vueuse/nuxt'
   ],
+  ssr: false,
 
   devtools: {
     enabled: true
+  },
+
+  app: {
+    head: {
+      title: 'Thanksgiving-Q Málaga'
+    }
   },
 
   css: ['~/assets/css/main.css'],
